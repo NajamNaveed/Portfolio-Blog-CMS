@@ -1,12 +1,10 @@
 # Portfolio + Blog CMS
 
-A full-stack Portfolio and Blog Content Management System built with the MERN stack.
+A full-stack developer portfolio and blog CMS built with the MERN stack.
 
-The project combines a public-facing developer portfolio and blog with a secure admin CMS that allows authenticated administrators to create, edit, publish, unpublish, and delete blog posts.
+The application combines a public-facing developer portfolio and blog with a secure admin CMS for managing blog content through a complete draft-to-publish workflow.
 
-The application is fully deployed with the frontend hosted on Vercel, the backend hosted on Render, and MongoDB Atlas used for database storage.
-
----
+The project is deployed in production with the frontend hosted on Vercel, the backend hosted on Render, and MongoDB Atlas used for database storage.
 
 ## Live Demo
 
@@ -15,6 +13,9 @@ https://portfolio-blog-cms.vercel.app/
 
 **Backend API:**  
 https://portfolio-blog-cms.onrender.com/
+
+**GitHub Repository:**  
+https://github.com/NajamNaveed/portfolio-blog-cms
 
 ---
 
@@ -30,7 +31,7 @@ https://portfolio-blog-cms.onrender.com/
 - Public blog listing
 - Individual blog post pages
 - Responsive navigation
-- Smooth animations and transitions
+- Smooth transitions and animations
 - Mobile-friendly layout
 
 ### Blog
@@ -40,7 +41,11 @@ https://portfolio-blog-cms.onrender.com/
 - Published posts are publicly accessible
 - Draft posts remain hidden from the public
 - Markdown-based post content
-- Post metadata such as title, date, tags, and cover image
+- Post metadata including:
+  - Title
+  - Date
+  - Tags
+  - Cover image
 
 ### Admin CMS
 
@@ -60,16 +65,44 @@ https://portfolio-blog-cms.onrender.com/
 
 ### Security
 
-- Password hashing with bcrypt
+- Password hashing with bcryptjs
 - JWT authentication
-- Protected admin endpoints
+- Protected admin API endpoints
 - Role-based admin authorization
 - Login rate limiting
 - CORS configuration
 - Helmet security headers
 - Environment-based secrets
 - Server-side author assignment
-- Public API only exposes published posts
+- Draft posts excluded from public API responses
+- Markdown rendering without unsafe raw HTML
+
+---
+
+## Featured Projects
+
+The portfolio currently includes links to the following projects:
+
+### Mart Management System
+
+A management system project focused on handling mart-related operations.
+
+GitHub:  
+https://github.com/NajamNaveed/Mart-Management-System
+
+### TraceVision
+
+A project named TraceVision focused on route/tracing functionality.
+
+GitHub:  
+https://github.com/NajamNaveed/TraceVision
+
+### Real-Time Chat App
+
+A real-time chat application using Socket.IO for communication.
+
+GitHub:  
+https://github.com/NajamNaveed/RealTime-Chat-App
 
 ---
 
@@ -98,25 +131,25 @@ https://portfolio-blog-cms.onrender.com/
 
 ### Deployment
 
-- Vercel — Frontend
-- Render — Backend
-- MongoDB Atlas — Database
+- **Vercel** — Frontend
+- **Render** — Backend
+- **MongoDB Atlas** — Database
 
 ---
 
 ## Architecture
 
-The application follows a client-server architecture:
+The application follows a client-server architecture.
 
 ```text
                     ┌─────────────────────┐
-                    │      User / Admin    │
+                    │      User / Admin   │
                     └──────────┬──────────┘
                                │
                                ▼
                     ┌─────────────────────┐
-                    │   React Frontend    │
-                    │      (Vercel)       │
+                    │    React Frontend   │
+                    │       (Vercel)      │
                     └──────────┬──────────┘
                                │
                          HTTP / REST API
@@ -124,15 +157,14 @@ The application follows a client-server architecture:
                                ▼
                     ┌─────────────────────┐
                     │   Express Backend   │
-                    │       (Render)      │
+                    │      (Render)       │
                     └──────────┬──────────┘
                                │
                                ▼
                     ┌─────────────────────┐
-                    │   MongoDB / Mongoose │
-                    │    (MongoDB Atlas)   │
+                    │  MongoDB / Mongoose │
+                    │   (MongoDB Atlas)   │
                     └─────────────────────┘
-
 Project Structure
 portfolio-blog-cms/
 │
@@ -164,17 +196,19 @@ portfolio-blog-cms/
 Local Development
 Prerequisites
 
-Make sure you have installed:
+Make sure the following are installed:
 
 Node.js
 npm
-MongoDB Atlas account or a local MongoDB instance
 Git
+MongoDB Atlas account or a local MongoDB instance
 1. Clone the Repository
 git clone https://github.com/NajamNaveed/portfolio-blog-cms.git
+
 cd portfolio-blog-cms
 2. Setup the Backend
 cd server
+
 npm install
 
 Create a .env file based on .env.example.
@@ -183,9 +217,12 @@ Example:
 
 NODE_ENV=development
 PORT=5000
+
 MONGO_URI=your_mongodb_connection_string
+
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRES_IN=1d
+
 CLIENT_URL=http://localhost:5173
 
 ADMIN_NAME=your_admin_name
@@ -204,6 +241,7 @@ http://localhost:5000
 Open another terminal:
 
 cd client
+
 npm install
 
 Create a .env file:
@@ -221,7 +259,7 @@ Authentication
 
 The admin area is protected using JWT authentication.
 
-Admin users authenticate through:
+Admin login is available at:
 
 /admin/login
 
@@ -235,18 +273,20 @@ Blog Workflow
 
 The CMS supports a complete draft-to-publish workflow.
 
-Create Post
-     │
-     ▼
-   Draft
-     │
-     │ Publish
-     ▼
- Published
-     │
-     │ Unpublish
-     ▼
-   Draft
+        Create Post
+             │
+             ▼
+           Draft
+             │
+          Publish
+             │
+             ▼
+         Published
+             │
+         Unpublish
+             │
+             ▼
+           Draft
 Draft
 
 A draft post can be created and edited from the admin dashboard but is not displayed on the public blog.
@@ -259,27 +299,41 @@ Unpublish
 
 An administrator can unpublish a post, returning it to draft status and removing it from the public blog.
 
+API Overview
+
+The backend provides REST API endpoints for:
+
+Authentication
+Public blog posts
+Admin post management
+Health checking
+
+The frontend communicates with the backend through Axios using the configured VITE_API_URL.
+
+Health Check
+GET /api/health
+
+The endpoint can be used to verify that the backend is running.
+
 Production Deployment
 
 The application is deployed using:
 
-Frontend
-
-Vercel
+Service	Platform
+Frontend	Vercel
+Backend	Render
+Database	MongoDB Atlas
+Production Frontend
 
 https://portfolio-blog-cms.vercel.app/
-Backend
 
-Render
+Production Backend
 
 https://portfolio-blog-cms.onrender.com/
-Database
-
-MongoDB Atlas
 
 The production backend connects to MongoDB Atlas through the MONGO_URI environment variable.
 
-Production Environment Variables
+Environment Variables
 Backend
 
 The backend requires:
@@ -299,31 +353,20 @@ The frontend requires:
 
 VITE_API_URL=
 
-For the deployed application, the API URL points to the production backend:
+For the deployed application, the frontend API URL points to:
 
 https://portfolio-blog-cms.onrender.com/api
 
 Never commit real environment variables, database credentials, JWT secrets, or administrator passwords to GitHub.
 
-API Overview
-
-The backend exposes REST API endpoints for:
-
-Authentication
-Blog posts
-Admin post management
-Health checking
-
-The frontend communicates with the backend through Axios using the configured VITE_API_URL.
-
 Testing
 
-Before deployment, the application was tested through:
+Before and during deployment, the application was tested through:
 
-Production frontend build
+Frontend production builds
 Backend syntax validation
 Local frontend/backend testing
-MongoDB Atlas connection testing
+MongoDB connection testing
 Authentication testing
 Admin route protection
 Post creation
@@ -331,21 +374,22 @@ Post editing
 Post deletion
 Draft/publish workflow
 Public blog visibility
-Production deployment
-
-Frontend production build:
-
+Production deployment testing
+Frontend Production Build
 npm run build
+
+The production build completed successfully.
+
 Security Considerations
 
 The application includes several security measures:
 
-Passwords are hashed using bcrypt
+Passwords are hashed using bcryptjs
 JWT authentication protects admin operations
 Admin authorization is enforced on protected API routes
 Login attempts are rate limited
 Helmet provides security-related HTTP headers
-CORS restricts frontend origins
+CORS restricts allowed frontend origins
 Sensitive configuration is stored in environment variables
 Draft posts are excluded from public responses
 Author information is derived server-side
@@ -355,10 +399,10 @@ Future Improvements
 Potential future improvements include:
 
 Image upload/storage service
-Rich text or enhanced Markdown editor
+Enhanced Markdown editor
 Search and filtering
 Post categories
-Pagination improvements
+Additional pagination improvements
 Analytics dashboard
 Comments system
 Automated testing
@@ -366,6 +410,7 @@ CI/CD pipeline
 Error monitoring
 Custom domain
 Author
+
 Najam Naveed
 
 Full Stack Developer focused on building modern web applications using JavaScript, React, Node.js, Express, PHP, and databases.
