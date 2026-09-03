@@ -323,6 +323,7 @@ describe('admin post API', () => {
   test('returns a safe response for an unexpected production database error', async () => {
     const originalNodeEnv = process.env.NODE_ENV;
     const databaseError = new Error('MongoServerSelectionError: mongodb://secret-host:27017/cms');
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const findSpy = jest.spyOn(Post, 'find').mockImplementationOnce(() => {
       throw databaseError;
     });
@@ -337,9 +338,11 @@ describe('admin post API', () => {
       expect(response.body).toEqual({ success: false, message: 'Server error' });
       expect(JSON.stringify(response.body)).not.toContain('mongodb://');
       expect(response.body).not.toHaveProperty('stack');
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Unhandled request error:', databaseError);
     } finally {
       process.env.NODE_ENV = originalNodeEnv;
       findSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     }
   });
 
