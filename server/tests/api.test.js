@@ -146,7 +146,15 @@ describe('authentication', () => {
       .set('Authorization', `Bearer ${expiredToken}`);
 
     expect(malformed.status).toBe(401);
+    expect(malformed.body).toEqual({
+      success: false,
+      message: 'Not authorized, invalid or expired token',
+    });
     expect(expired.status).toBe(401);
+    expect(expired.body).toEqual({
+      success: false,
+      message: 'Not authorized, invalid or expired token',
+    });
   });
 
   test('rejects malformed Authorization headers and an empty Bearer token', async () => {
@@ -287,6 +295,71 @@ describe('admin post API', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.posts).toHaveLength(2);
+  });
+
+  test('returns a safe conflict response for a duplicate slug database error', async () => {
+    const duplicateError = Object.assign(new Error('E11000 duplicate key error collection secret-db'), {
+      code: 11000,
+    });
+    const createSpy = jest.spyOn(Post, 'create').mockRejectedValueOnce(duplicateError);
+
+    try {
+      const response = await request(app)
+        .post('/api/admin/posts')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(validPost({ slug: 'already-used-slug' }));
+
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({
+        success: false,
+        message: 'A post with that slug already exists',
+      });
+      expect(JSON.stringify(response.body)).not.toContain('E11000');
+    } finally {
+      createSpy.mockRestore();
+    }
+  });
+
+  test('returns a safe response for an unexpected production database error', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const databaseError = new Error('MongoServerSelectionError: mongodb://secret-host:27017/cms');
+    const findSpy = jest.spyOn(Post, 'find').mockImplementationOnce(() => {
+      throw databaseError;
+    });
+    process.env.NODE_ENV = 'production';
+
+    try {
+      const response = await request(app)
+        .get('/api/admin/posts')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body).toEqual({ success: false, message: 'Server error' });
+      expect(JSON.stringify(response.body)).not.toContain('mongodb://');
+      expect(response.body).not.toHaveProperty('stack');
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      findSpy.mockRestore();
+    }
+  });
+
+  test('returns a safe response for a Mongoose validation error', async () => {
+    const validationError = new mongoose.Error.ValidationError();
+    validationError.addError('title', new mongoose.Error.ValidatorError({ message: 'Title is required' }));
+    const createSpy = jest.spyOn(Post, 'create').mockRejectedValueOnce(validationError);
+
+    try {
+      const response = await request(app)
+        .post('/api/admin/posts')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(validPost());
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ success: false, message: 'Validation failed' });
+      expect(JSON.stringify(response.body)).not.toContain('ValidatorError');
+    } finally {
+      createSpy.mockRestore();
+    }
   });
 
   test('paginates admin posts with defaults, bounds, metadata, and both statuses', async () => {
@@ -512,5 +585,22 @@ describe('public posts and error handling', () => {
     expect(route.body.message).toContain('Route not found');
     expect(post.status).toBe(404);
     expect(post.body.message).toBe('Post not found');
+  });
+
+  test('returns a JSON error for malformed JSON in production', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    try {
+      const response = await request(app)
+        .post('/api/auth/login')
+        .set('Content-Type', 'application/json')
+        .send('{"email":');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ success: false, message: 'Malformed JSON request' });
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
   });
 });
