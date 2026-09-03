@@ -14,15 +14,31 @@ function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 50;
+const MAX_PAGE = 100000;
+
+function parsePaginationValue(value, defaultValue, maximum) {
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) return defaultValue;
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) return defaultValue;
+
+  return Math.min(parsed, maximum);
+}
+
+function getPagination(query) {
+  const page = parsePaginationValue(query.page, DEFAULT_PAGE, MAX_PAGE);
+  const limit = parsePaginationValue(query.limit, DEFAULT_LIMIT, MAX_LIMIT);
+
+  return { page, limit, skip: (page - 1) * limit };
+}
+
 // ---------------- Public ----------------
 
 const getPublicPosts = asyncHandler(async (req, res) => {
-  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-  const limit = Math.min(
-  Math.max(parseInt(req.query.limit, 10) || 10, 1),
-  50
-);
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = getPagination(req.query);
 
   const filter = { status: 'published' };
 
@@ -32,7 +48,8 @@ const getPublicPosts = asyncHandler(async (req, res) => {
       .skip(skip)
       .limit(limit)
       .populate('author', 'name')
-      .select('title slug excerpt coverImage tags author publishedAt createdAt updatedAt'),
+      .select('title slug excerpt coverImage tags author publishedAt createdAt updatedAt')
+      .lean(),
     Post.countDocuments(filter),
   ]);
 
@@ -56,19 +73,15 @@ const getPublicPostBySlug = asyncHandler(async (req, res) => {
 // ---------------- Admin ----------------
 
 const getAdminPosts = asyncHandler(async (req, res) => {
-  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-  const limit = Math.min(
-  Math.max(parseInt(req.query.limit, 10) || 10, 1),
-  50
-);
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = getPagination(req.query);
 
   const [posts, total] = await Promise.all([
     Post.find({})
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('author', 'name email'),
+      .populate('author', 'name email')
+      .lean(),
     Post.countDocuments({}),
   ]);
 

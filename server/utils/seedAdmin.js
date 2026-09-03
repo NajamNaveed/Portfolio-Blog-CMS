@@ -15,14 +15,15 @@ async function seedAdmin() {
   try {
     await mongoose.connect(MONGO_URI);
 
-    const existingAdmin = await User.findOne({ email: ADMIN_EMAIL.toLowerCase().trim() });
+    const normalizedEmail = ADMIN_EMAIL.trim().toLowerCase();
+    const existingAdmin = await User.findOne({ email: normalizedEmail });
 
     if (existingAdmin) {
       console.log(`Admin already exists for ${ADMIN_EMAIL}. Skipping.`);
     } else {
       await User.create({
         name: ADMIN_NAME,
-        email: ADMIN_EMAIL,
+        email: normalizedEmail,
         password: ADMIN_PASSWORD,
         role: 'admin',
       });
@@ -36,4 +37,8 @@ async function seedAdmin() {
   }
 }
 
-seedAdmin();
+if (require.main === module) {
+  seedAdmin();
+}
+
+module.exports = { seedAdmin };

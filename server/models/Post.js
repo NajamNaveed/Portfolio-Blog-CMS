@@ -38,7 +38,6 @@ const postSchema = new mongoose.Schema(
       type: String,
       enum: ['draft', 'published'],
       default: 'draft',
-      index: true,
     },
     author: {
       type: mongoose.Schema.Types.ObjectId,
@@ -55,5 +54,7 @@ const postSchema = new mongoose.Schema(
 
 // Supports the public listing query: filter by status, sort by publishedAt desc
 postSchema.index({ status: 1, publishedAt: -1 });
+// Supports the admin listing query: sort all posts by creation time desc
+postSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Post', postSchema);
