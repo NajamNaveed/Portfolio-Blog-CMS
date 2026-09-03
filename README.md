@@ -77,6 +77,13 @@ https://github.com/NajamNaveed/portfolio-blog-cms
 - Draft posts excluded from public API responses
 - Markdown rendering without unsafe raw HTML
 
+### Backend Reliability
+
+- Server-side input validation
+- Database indexes for public and admin post queries
+- Bounded pagination for public and admin post listings
+- Centralized error handling with safe API responses
+
 ---
 
 ## Featured Projects
@@ -361,22 +368,33 @@ Never commit real environment variables, database credentials, JWT secrets, or a
 
 Testing
 
-Before and during deployment, the application was tested through:
+The project includes 52 automated backend/API tests covering:
 
-Frontend production builds
-Backend syntax validation
-Local frontend/backend testing
-MongoDB connection testing
-Authentication testing
-Admin route protection
-Post creation
-Post editing
-Post deletion
-Draft/publish workflow
-Public blog visibility
-Production deployment testing
+- Authentication and authorization
+- Input validation
+- Post creation, editing, deletion, and publishing
+- Public draft concealment and published post access
+- Pagination behavior
+- Centralized error handling
+
+The frontend production build is also verified with `npm run build`.
+
+CI/CD
+
+GitHub Actions runs on pushes to `main` and pull requests targeting `main`. The CI workflow runs:
+
+- Backend `npm ci`
+- Backend `npm test`
+- Frontend `npm ci`
+- Frontend `npm run build`
+
+Frontend and backend production deployment remains separate through Vercel and Render.
+
 Frontend Production Build
+
+```bash
 npm run build
+```
 
 The production build completed successfully.
 
@@ -402,11 +420,8 @@ Image upload/storage service
 Enhanced Markdown editor
 Search and filtering
 Post categories
-Additional pagination improvements
 Analytics dashboard
 Comments system
-Automated testing
-CI/CD pipeline
 Error monitoring
 Custom domain
 Author
