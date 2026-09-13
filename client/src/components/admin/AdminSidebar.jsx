@@ -2,7 +2,10 @@ import { NavLink } from 'react-router-dom';
 
 const links = [
   { to: '/admin', label: 'Dashboard', end: true },
+  { to: '/admin/site-content', label: 'Site Content' },
+  { to: '/admin/projects', label: 'Projects' },
   { to: '/admin/posts', label: 'Posts' },
+  { to: '/admin/messages', label: 'Messages' },
 ];
 
 export default function AdminSidebar({ onNavigate }) {

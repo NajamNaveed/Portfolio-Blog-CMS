@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import { motion } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorMessage from '../../components/ErrorMessage';
 import { formatDate } from '../../utils/formatDate';
 import { markdownComponents } from '../../utils/markdownComponents';
 import { getPublicPostBySlug } from '../../services/postService';
+import { useSiteContent } from '../../hooks/useSiteContent';
 
 export default function BlogPost() {
   const { slug } = useParams();
+  const { content } = useSiteContent();
   const [post, setPost] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | success | error | notfound
 
@@ -18,7 +22,7 @@ export default function BlogPost() {
       const data = await getPublicPostBySlug(slug);
       setPost(data.post);
       setStatus('success');
-      document.title = `${data.post.title} — Najam Naveed`;
+      document.title = `${data.post.title} — ${content.brand?.name || 'Portfolio'}`;
     } catch (err) {
       setStatus(err.response?.status === 404 ? 'notfound' : 'error');
     }
@@ -34,12 +38,9 @@ export default function BlogPost() {
   if (status === 'notfound') {
     return (
       <div className="animate-fade-in py-16 text-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Article Not Found</h1>
-        <p className="mt-2 text-gray-600">This article doesn't exist or is no longer published.</p>
-        <Link
-          to="/blog"
-          className="mt-6 inline-block text-sm font-medium text-gray-900 transition-colors hover:text-gray-600"
-        >
+        <h1 className="font-display text-2xl text-paper">Article Not Found</h1>
+        <p className="mt-2 text-stone">This article doesn't exist or is no longer published.</p>
+        <Link to="/blog" className="mt-6 inline-block text-sm font-medium text-accent hover:text-accent-dim">
           ← Back to Blog
         </Link>
       </div>
@@ -51,28 +52,30 @@ export default function BlogPost() {
   }
 
   return (
-    <article className="animate-fade-up mx-auto max-w-2xl">
-      <Link
-        to="/blog"
-        className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
-      >
-        <span aria-hidden="true">←</span> Back to Blog
+    <motion.article
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="mx-auto max-w-2xl"
+    >
+      <Link to="/blog" className="inline-flex items-center gap-1.5 text-sm font-medium text-stone transition-colors hover:text-accent">
+        <ArrowLeft className="size-3.5" /> Back to Blog
       </Link>
 
       <header className="mt-6">
         {post.tags?.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {post.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+              <span key={tag} className="rounded-full border border-line px-2.5 py-0.5 text-xs font-medium text-stone">
                 {tag}
               </span>
             ))}
           </div>
         )}
-        <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-gray-900 sm:text-4xl">
+        <h1 className="mt-4 font-display text-3xl leading-tight text-balance text-paper sm:text-4xl">
           {post.title}
         </h1>
-        <div className="mt-4 flex items-center gap-3 text-sm text-gray-500">
+        <div className="mt-4 flex items-center gap-3 text-sm text-stone">
           {post.author?.name && <span>{post.author.name}</span>}
           {post.author?.name && <span aria-hidden="true">·</span>}
           <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
@@ -86,13 +89,13 @@ export default function BlogPost() {
           onError={(e) => {
             e.currentTarget.style.display = 'none';
           }}
-          className="mt-8 aspect-[16/9] w-full rounded-xl object-cover shadow-sm"
+          className="mt-8 aspect-[16/9] w-full rounded-xl border border-line object-cover"
         />
       )}
 
       <div className="mt-10">
         <ReactMarkdown components={markdownComponents}>{post.content}</ReactMarkdown>
       </div>
-    </article>
+    </motion.article>
   );
 }

@@ -1,88 +1,179 @@
-import { useEffect } from 'react';
-
-const PROJECTS = [
-  {
-    title: 'Mart Management System',
-    description: 'Full-stack retail management system with inventory, POS, sales, purchases, and analytics.',
-    technologies: ['React', 'PHP', 'MySQL'],
-    github: 'https://github.com/NajamNaveed/Mart-Management-System',
-  },
-  {
-    title: 'TraceVision',
-    description: 'Network path analyzer with live world map visualization, topology graph, and hop statistics.',
-    technologies: ['React', 'Node.js', 'Leaflet'],
-    github: 'https://github.com/NajamNaveed/TraceVision',
-  },
-  {
-    title: 'Real-Time Chat App',
-    description: 'Real-time messaging application enabling instant communication between multiple connected users.',
-    technologies: ['Node.js', 'Socket.IO', 'JavaScript'],
-    github: 'https://github.com/NajamNaveed/RealTime-Chat-App',
-  },
-];
-
-const DELAY_CLASSES = ['', 'fade-delay-1', 'fade-delay-2'];
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { ExternalLink, ArrowUpRight, ArrowRight } from 'lucide-react';
+import { FaGithub as Github } from 'react-icons/fa6';
+import { Link } from 'react-router-dom';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorMessage from '../../components/ErrorMessage';
+import EmptyState from '../../components/EmptyState';
+import Modal from '../../components/Modal';
+import { getPublicProjects, getPublicProjectBySlug } from '../../services/projectService';
+import { useSiteContent } from '../../hooks/useSiteContent';
 
 export default function Projects() {
+  const { content } = useSiteContent();
+  const [projects, setProjects] = useState([]);
+  const [status, setStatus] = useState('loading');
+  const [activeProject, setActiveProject] = useState(null);
+  const [detailStatus, setDetailStatus] = useState('idle');
+
+  async function fetchProjects() {
+    setStatus('loading');
+    try {
+      const data = await getPublicProjects({ limit: 50 });
+      setProjects(data.projects);
+      setStatus('success');
+    } catch {
+      setStatus('error');
+    }
+  }
+
   useEffect(() => {
-    document.title = 'Projects — Najam Naveed';
-  }, []);
+    document.title = `Projects — ${content.brand?.name || 'Portfolio'}`;
+    fetchProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content.brand?.name]);
+
+  async function openProject(project) {
+    setActiveProject(project);
+    setDetailStatus('loading');
+    try {
+      const data = await getPublicProjectBySlug(project.slug);
+      setActiveProject(data.project);
+      setDetailStatus('success');
+    } catch {
+      setDetailStatus('error');
+    }
+  }
 
   return (
     <div>
-      <div className="animate-fade-up">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Projects</h1>
-        <p className="mt-4 max-w-2xl text-gray-600">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent">Selected Work</p>
+        <h1 className="mt-3 font-display text-4xl leading-tight tracking-tight text-balance sm:text-6xl">
+          Projects
+        </h1>
+        <p className="mt-5 max-w-2xl text-lg text-paper-dim">
           A selection of projects showcasing web development, systems design, and real-time communication.
         </p>
+      </motion.div>
+
+      <div className="mt-14">
+        {status === 'loading' && <LoadingSpinner />}
+        {status === 'error' && <ErrorMessage message="Couldn't load projects." onRetry={fetchProjects} />}
+        {status === 'success' && projects.length === 0 && <EmptyState message="No published projects yet." />}
+        {status === 'success' && projects.length > 0 && (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project, i) => (
+              <motion.button
+                type="button"
+                key={project._id || project.slug}
+                onClick={() => openProject(project)}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
+                className="group flex flex-col items-start rounded-2xl border border-line bg-ink-soft text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent/50"
+              >
+                <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-t-2xl bg-ink">
+                  {project.coverImage ? (
+                    <img
+                      src={project.coverImage}
+                      alt={project.title}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <span className="font-display text-3xl text-line">{project.title.slice(0, 1)}</span>
+                  )}
+                  {project.featured && (
+                    <span className="absolute left-3 top-3 rounded-full bg-accent px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-ink">
+                      Featured
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex w-full flex-1 flex-col gap-3 p-6">
+                  <h3 className="font-display text-xl text-paper">{project.title}</h3>
+                  <p className="line-clamp-2 text-sm leading-relaxed text-stone">{project.description}</p>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {project.technologies?.slice(0, 4).map((tech) => (
+                      <span
+                        key={tech}
+                        className="rounded-full border border-line px-2.5 py-1 text-xs font-medium text-stone"
+                      >
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="mt-auto inline-flex items-center gap-1.5 pt-2 text-xs font-medium text-accent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    View details <ArrowRight className="size-3.5" />
+                  </span>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {PROJECTS.map((project, i) => (
-          <div
-            key={project.title}
-            className={`animate-fade-up flex flex-col justify-between rounded-lg border border-gray-200 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm ${DELAY_CLASSES[i]}`}
-          >
-            <div>
-              <h3 className="font-semibold text-gray-900">{project.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600">{project.description}</p>
-              
-              <div className="mt-4 flex flex-wrap gap-2">
-                {project.technologies.map((tech) => (
-                  <span
-                    key={tech}
-                    className="inline-block rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700"
-                  >
+      <Modal open={Boolean(activeProject)} onClose={() => setActiveProject(null)} labelledBy="project-modal-title">
+        {activeProject && (
+          <div>
+            {activeProject.coverImage && (
+              <img
+                src={activeProject.coverImage}
+                alt={activeProject.title}
+                className="mb-5 aspect-[16/9] w-full rounded-xl object-cover"
+              />
+            )}
+            <h3 id="project-modal-title" className="font-display text-2xl text-paper">
+              {activeProject.title}
+            </h3>
+            <p className="mt-3 leading-relaxed text-stone">
+              {detailStatus === 'loading' ? 'Loading details…' : activeProject.longDescription || activeProject.description}
+            </p>
+
+            {activeProject.technologies?.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {activeProject.technologies.map((tech) => (
+                  <span key={tech} className="rounded-full border border-line px-2.5 py-1 text-xs font-medium text-stone">
                     {tech}
                   </span>
                 ))}
               </div>
-            </div>
-            
-            <a
-              href={project.github}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex w-fit items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              aria-label={`View ${project.title} on GitHub`}
-            >
-              <span>View on GitHub</span>
-              <svg
-                className="h-4 w-4"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
+            )}
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              {activeProject.githubUrl && (
+                <a
+                  href={activeProject.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-line px-4 py-2.5 text-sm font-medium text-paper transition-colors hover:border-accent hover:text-accent"
+                >
+                  <Github className="size-4" /> View Code
+                </a>
+              )}
+              {activeProject.liveUrl && (
+                <a
+                  href={activeProject.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-ink"
+                >
+                  <ExternalLink className="size-4" /> Live Demo
+                </a>
+              )}
+              <Link
+                to="/contact"
+                onClick={() => setActiveProject(null)}
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-stone hover:text-accent"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </a>
+                Discuss something similar <ArrowUpRight className="size-4" />
+              </Link>
+            </div>
           </div>
-        ))}
-      </div>
+        )}
+      </Modal>
     </div>
   );
 }

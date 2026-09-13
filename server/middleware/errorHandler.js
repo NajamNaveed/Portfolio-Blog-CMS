@@ -10,7 +10,7 @@ function getErrorResponse(err) {
   }
 
   if (err && err.code === 11000) {
-    return { statusCode: 409, message: 'A post with that slug already exists', exposeStack: false };
+    return { statusCode: 409, message: 'A record with that value already exists', exposeStack: false };
   }
 
   if (err && err.name === 'ValidationError') {

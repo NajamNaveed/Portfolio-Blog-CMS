@@ -4,6 +4,12 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const publicPostRoutes = require('./routes/publicPostRoutes');
 const adminPostRoutes = require('./routes/adminPostRoutes');
+const publicSiteContentRoutes = require('./routes/publicSiteContentRoutes');
+const adminSiteContentRoutes = require('./routes/adminSiteContentRoutes');
+const publicProjectRoutes = require('./routes/publicProjectRoutes');
+const adminProjectRoutes = require('./routes/adminProjectRoutes');
+const publicMessageRoutes = require('./routes/publicMessageRoutes');
+const adminMessageRoutes = require('./routes/adminMessageRoutes');
 const corsOptions = require('./config/corsOptions');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
@@ -26,6 +32,12 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', publicPostRoutes);
 app.use('/api/admin/posts', adminPostRoutes);
+app.use('/api/site-content', publicSiteContentRoutes);
+app.use('/api/admin/site-content', adminSiteContentRoutes);
+app.use('/api/projects', publicProjectRoutes);
+app.use('/api/admin/projects', adminProjectRoutes);
+app.use('/api/contact', publicMessageRoutes);
+app.use('/api/admin/messages', adminMessageRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

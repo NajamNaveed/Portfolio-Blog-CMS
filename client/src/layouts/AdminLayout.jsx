@@ -18,7 +18,7 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-gray-50 lg:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 border-r border-gray-200 bg-white lg:block">
+      <aside className="hidden w-60 shrink-0 border-r border-gray-200 bg-white lg:sticky lg:top-0 lg:block lg:h-screen lg:overflow-y-auto">
         <div className="flex h-full flex-col px-4 py-6">
           <Link to="/admin" className="mb-8 px-1 text-lg font-semibold tracking-tight">
             Admin<span className="text-gray-400">.cms</span>
