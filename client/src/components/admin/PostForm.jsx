@@ -246,12 +246,12 @@ export default function PostForm({ mode, initialData, onSubmit, submitting, subm
               rows={18}
               value={values.content}
               onChange={handleChange('content')}
-              className={`${inputClass} min-w-0 font-mono ${showPreview ? 'hidden lg:block' : ''}`}
+              className={`${inputClass} h-[28rem] min-w-0 resize-y font-mono ${showPreview ? 'hidden lg:block' : ''}`}
               aria-invalid={Boolean(errors.content)}
               aria-describedby={errors.content ? 'content-error' : undefined}
             />
             <div
-              className={`min-w-0 overflow-y-auto overflow-x-hidden rounded-md border border-gray-200 p-4 ${
+              className={`h-[28rem] min-w-0 overflow-y-auto overflow-x-hidden rounded-md border border-gray-200 p-4 ${
                 showPreview ? '' : 'hidden lg:block'
               }`}
             >

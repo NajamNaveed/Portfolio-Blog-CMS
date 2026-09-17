@@ -65,8 +65,8 @@ export default function AdminLayout() {
 
         <div
           id="admin-mobile-menu"
-          className={`overflow-hidden border-b border-gray-200 bg-white transition-[max-height] duration-200 lg:hidden ${
-            menuOpen ? 'max-h-60' : 'max-h-0'
+          className={`overflow-y-auto border-b border-gray-200 bg-white transition-[max-height] duration-200 lg:hidden ${
+            menuOpen ? 'max-h-[70vh]' : 'max-h-0'
           }`}
         >
           <div className="flex flex-col gap-1 px-4 py-3">

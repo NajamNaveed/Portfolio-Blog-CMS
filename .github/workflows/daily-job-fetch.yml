@@ -1,0 +1,22 @@
+name: Daily Job Fetch
+
+on:
+  schedule:
+    # Runs at 09:00 UTC every day. GitHub Actions cron is always UTC —
+    # convert your desired local time to UTC and edit the line below.
+    # Example: 9:00 AM PKT (UTC+5) = 04:00 UTC -> "0 4 * * *"
+    - cron: '0 9 * * *'
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab too
+
+jobs:
+  trigger-job-fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the job-fetch endpoint
+        run: |
+          curl -X POST "${{ secrets.RENDER_API_URL }}/api/jobs-cron/run" \
+            -H "x-cron-secret: ${{ secrets.JOB_CRON_SECRET }}" \
+            --max-time 90 \
+            --retry 3 \
+            --retry-delay 20 \
+            --fail

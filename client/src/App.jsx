@@ -20,6 +20,7 @@ import CreateProject from './pages/admin/CreateProject';
 import EditProject from './pages/admin/EditProject';
 import SiteContentEditor from './pages/admin/SiteContentEditor';
 import Messages from './pages/admin/Messages';
+import Jobs from './pages/admin/Jobs';
 
 export default function App() {
   return (
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="projects/new" element={<CreateProject />} />
         <Route path="projects/:id/edit" element={<EditProject />} />
         <Route path="messages" element={<Messages />} />
+        <Route path="jobs" element={<Jobs />} />
       </Route>
     </Routes>
   );

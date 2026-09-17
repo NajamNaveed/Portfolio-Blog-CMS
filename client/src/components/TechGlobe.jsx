@@ -26,6 +26,7 @@ export default function TechGlobe({ items, radius: radiusProp = 190, height = 52
   const wireRef = useRef(null);
   const [radius, setRadius] = useState(radiusProp);
   const [boxHeight, setBoxHeight] = useState(height);
+  const [inView, setInView] = useState(true);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -46,13 +47,28 @@ export default function TechGlobe({ items, radius: radiusProp = 190, height = 52
     return () => observer.disconnect();
   }, [radiusProp, height]);
 
+  // Stop paying for the render loop entirely when the globe has scrolled
+  // out of view — no point animating 3D transforms nobody can see.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.05 });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const prefersReducedMotion = useRef(
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  );
+
   // All rotation state lives in refs and is pushed straight to the DOM
   // every animation frame — this keeps a 40+ node drag interaction at a
   // smooth 60fps instead of re-rendering React on every pointer move.
   const state = useRef({
     yaw: 20,
     pitch: -12,
-    velYaw: 0.06, // idle baseline spin, deg/frame
+    velYaw: prefersReducedMotion.current ? 0 : 0.06, // idle baseline spin, deg/frame
     velPitch: 0,
     dragging: false,
     lastX: 0,
@@ -63,10 +79,10 @@ export default function TechGlobe({ items, radius: radiusProp = 190, height = 52
   const points = useMemo(() => fibonacciSphere(items.length, radius), [items.length, radius]);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return undefined;
+    if (!inView) return undefined;
 
     let raf;
+    let frame = 0;
 
     function render() {
       const s = state.current;
@@ -75,7 +91,8 @@ export default function TechGlobe({ items, radius: radiusProp = 190, height = 52
         // Momentum decays toward the gentle baseline idle spin rather
         // than toward zero, so a fast flick gradually eases back into
         // the ambient rotation instead of coming to a dead stop.
-        s.velYaw += (0.06 - s.velYaw) * 0.02;
+        const baseline = prefersReducedMotion.current ? 0 : 0.06;
+        s.velYaw += (baseline - s.velYaw) * 0.02;
         s.velPitch *= 0.94;
         s.yaw += s.velYaw;
         s.pitch += s.velPitch;
@@ -87,6 +104,10 @@ export default function TechGlobe({ items, radius: radiusProp = 190, height = 52
       const sinY = Math.sin(yawRad);
       const cosP = Math.cos(pitchRad);
       const sinP = Math.sin(pitchRad);
+      // z-index precision beyond ~20 steps is invisible to the eye but
+      // still costs a style write per icon per frame, so it's throttled
+      // separately from the transform/opacity that need to stay smooth.
+      const updateZIndex = frame % 3 === 0;
 
       points.forEach(([x, y, z], i) => {
         const el = iconRefs.current[i];
@@ -102,21 +123,22 @@ export default function TechGlobe({ items, radius: radiusProp = 190, height = 52
         const scale = 0.62 + depth * 0.62;
         const opacity = 0.35 + depth * 0.75;
 
-        el.style.transform = `translate3d(${x1}px, ${y2}px, ${z2}px) scale(${scale})`;
+        el.style.transform = `translate3d(${x1.toFixed(1)}px, ${y2.toFixed(1)}px, ${z2.toFixed(1)}px) scale(${scale.toFixed(2)})`;
         el.style.opacity = Math.min(opacity, 1).toFixed(2);
-        el.style.zIndex = Math.round(depth * 1000);
+        if (updateZIndex) el.style.zIndex = Math.round(depth * 100);
       });
 
       if (wireRef.current) {
-        wireRef.current.style.transform = `rotateX(${s.pitch * 0.5}deg) rotateY(${s.yaw}deg)`;
+        wireRef.current.style.transform = `rotateX(${(s.pitch * 0.5).toFixed(1)}deg) rotateY(${s.yaw.toFixed(1)}deg)`;
       }
 
+      frame += 1;
       raf = requestAnimationFrame(render);
     }
 
     raf = requestAnimationFrame(render);
     return () => cancelAnimationFrame(raf);
-  }, [points, radius]);
+  }, [points, radius, inView]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -210,14 +232,14 @@ export default function TechGlobe({ items, radius: radiusProp = 190, height = 52
         }}
       >
         <div ref={wireRef} style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d' }}>
-          {[0, 30, 60, 90, 120, 150].map((deg) => (
+          {[0, 45, 90, 135].map((deg) => (
             <div
               key={`h-${deg}`}
               className="absolute inset-0 rounded-full border border-accent/25"
               style={{ transform: `rotateY(${deg}deg)` }}
             />
           ))}
-          {[-60, -30, 0, 30, 60].map((deg) => (
+          {[-45, 0, 45].map((deg) => (
             <div
               key={`v-${deg}`}
               className="absolute inset-0 rounded-full border border-accent/15"
@@ -242,7 +264,7 @@ export default function TechGlobe({ items, radius: radiusProp = 190, height = 52
               style={{ position: 'absolute', left: 0, top: 0, willChange: 'transform, opacity' }}
               className="group -ml-7 -mt-7 flex flex-col items-center"
             >
-              <div className="flex size-14 items-center justify-center rounded-full border border-line bg-ink-soft/90 shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-[border-color,box-shadow] duration-200 group-hover:border-accent group-hover:shadow-[0_0_28px_rgba(182,255,60,0.5)]">
+              <div className="flex size-14 items-center justify-center rounded-full border border-line bg-ink-soft transition-[border-color,box-shadow] duration-200 group-hover:border-accent group-hover:shadow-[0_0_28px_rgba(182,255,60,0.5)]">
                 <Icon className="size-7 text-paper-dim transition-colors duration-200 group-hover:text-accent" />
               </div>
               <span className="pointer-events-none mt-1.5 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 font-mono text-[10px] text-accent opacity-0 transition-opacity duration-200 group-hover:opacity-100">

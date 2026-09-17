@@ -22,4 +22,15 @@ const contactLimiter = rateLimit({
   },
 });
 
-module.exports = { loginLimiter, contactLimiter };
+const cronRunLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many run requests. Please try again later.',
+  },
+});
+
+module.exports = { loginLimiter, contactLimiter, cronRunLimiter };

@@ -19,7 +19,7 @@ export default function Footer() {
     <footer className="relative border-t border-line bg-ink">
       <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
         <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2">
+          <div className="sm:col-span-2 lg:col-span-2">
             <p className="font-display text-2xl text-paper">
               {brand?.name}
               <span className="text-accent">.</span>

@@ -1,0 +1,31 @@
+import api from './api';
+
+export async function getJobCriteria() {
+  const { data } = await api.get('/admin/jobs/criteria');
+  return data.criteria;
+}
+
+export async function updateJobCriteria(payload) {
+  const { data } = await api.put('/admin/jobs/criteria', payload);
+  return data.criteria;
+}
+
+export async function getJobs(params = {}) {
+  const { data } = await api.get('/admin/jobs', { params });
+  return data;
+}
+
+export async function updateJobStatus(id, status) {
+  const { data } = await api.patch(`/admin/jobs/${id}/status`, { status });
+  return data.job;
+}
+
+export async function deleteJob(id) {
+  const { data } = await api.delete(`/admin/jobs/${id}`);
+  return data;
+}
+
+export async function runJobFetchNow() {
+  const { data } = await api.post('/admin/jobs/run');
+  return data.summary;
+}

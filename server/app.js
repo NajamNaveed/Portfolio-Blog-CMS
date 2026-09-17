@@ -10,6 +10,8 @@ const publicProjectRoutes = require('./routes/publicProjectRoutes');
 const adminProjectRoutes = require('./routes/adminProjectRoutes');
 const publicMessageRoutes = require('./routes/publicMessageRoutes');
 const adminMessageRoutes = require('./routes/adminMessageRoutes');
+const adminJobRoutes = require('./routes/adminJobRoutes');
+const jobRunRoutes = require('./routes/jobRunRoutes');
 const corsOptions = require('./config/corsOptions');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
@@ -38,6 +40,8 @@ app.use('/api/projects', publicProjectRoutes);
 app.use('/api/admin/projects', adminProjectRoutes);
 app.use('/api/contact', publicMessageRoutes);
 app.use('/api/admin/messages', adminMessageRoutes);
+app.use('/api/admin/jobs', adminJobRoutes);
+app.use('/api/jobs-cron', jobRunRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
