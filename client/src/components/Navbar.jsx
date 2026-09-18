@@ -3,6 +3,7 @@ import { NavLink, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { trackEvent } from '../utils/trackEvent';
 
 const links = [
   { to: '/', label: 'Home' },
@@ -86,6 +87,7 @@ export default function Navbar() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
           <Link
             to="/contact"
+            onClick={() => trackEvent('contact_cta', 'navbar')}
             className="group hidden items-center gap-2 rounded-full border border-line bg-ink-soft px-5 py-2.5 text-sm font-medium text-paper transition-all duration-300 hover:border-accent hover:bg-accent hover:text-ink lg:inline-flex"
           >
             Contact Me
@@ -146,7 +148,10 @@ export default function Navbar() {
               <li className="pt-2">
                 <Link
                   to="/contact"
-                  onClick={() => setMenuOpen(false)}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    trackEvent('contact_cta', 'navbar-mobile');
+                  }}
                   className="flex items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-ink"
                 >
                   Contact Me

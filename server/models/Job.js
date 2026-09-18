@@ -67,6 +67,14 @@ const jobSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    expired: {
+      type: Boolean,
+      default: false,
+    },
+    expiredCheckedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

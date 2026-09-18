@@ -82,8 +82,41 @@ Go to your repo's **Actions** tab → **Daily Job Fetch** workflow → **Run wor
 
 ## 6. Set your criteria
 
-In the admin panel, go to **Jobs → Settings**: keywords, exclude-keywords, remote/on-site/both, locations (for on-site), which sources to use, and your preferred daily time (this last one is just so you remember what to put in the cron schedule above — the server itself doesn't enforce it, since it can't reliably run its own timer while sleeping).
+In the admin panel, go to **Jobs → Settings**: must-have keywords (hard filter), nice-to-have keywords (AI boost, doesn't exclude), exclude keywords, blocked companies, remote/on-site/both, location filters (country required, state and city optional — a job matches if it satisfies any one of your saved location rows), which sources to use, and your preferred daily time.
 
-## 7. Using it day-to-day
+You can also block a company directly from a job card in **Jobs → Listings** — it hides all their current listings and adds them to your blocklist for future fetches.
+
+## 7. Optional: get notified via Telegram
+
+Free, no business verification needed (unlike WhatsApp's Business API — see note below on why Telegram was used instead).
+
+1. Open Telegram, search for **@BotFather**, send `/newbot`, follow the prompts. You'll get a bot token.
+2. Message your new bot anything (so it can see your chat), then visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser — find `"chat":{"id":...}` in the response, that's your chat ID.
+3. Add both to `server/.env`:
+   ```
+   TELEGRAM_BOT_TOKEN=your_bot_token
+   TELEGRAM_CHAT_ID=your_chat_id
+   ```
+4. Leave both blank to skip notifications entirely — everything else still works.
+
+**Why not WhatsApp?** WhatsApp's Business Cloud API requires a dedicated business phone number (can't be your personal WhatsApp), Meta Business verification, and only a limited number of free "service conversations" per month before per-message billing applies. Telegram has none of that friction and is unconditionally free, which is why notifications are built on Telegram. If you specifically want WhatsApp despite the setup overhead, let me know and it can be added as an alternative.
+
+## 8. Optional: use Gemini instead of Groq
+
+Every AI feature in this project (job filtering, Ask About My Work, AI project drafting) goes through one shared client, switchable via `AI_PROVIDER` in `server/.env`:
+```
+AI_PROVIDER=groq    # or "gemini"
+```
+If you set it to `gemini`, also set `GEMINI_API_KEY` (free from https://aistudio.google.com). This is useful if you want to spread usage across two separate free quotas, or if one provider's free tier runs low.
+
+## 9. Share Access (Option B — read-only guest links)
+
+From **Jobs → Share Access**, create a link with an optional label, optional expiry (in days), and an optional passcode. Copy the generated link and send it to whoever you want to see your job listings — they don't need an account or login. The link:
+- Is completely read-only — no edit, delete, status-change, or Run Now capability
+- Has zero access to any other admin section (Posts, Site Content, Messages, etc.)
+- Can be revoked instantly from the same screen
+- Shows you a view count and last-viewed time
+
+## 10. Using it day-to-day
 
 **Jobs → Listings** tab: filter by status (New / Interested / Applied / Rejected / Hidden), open the original posting, move a job through your pipeline, or delete it. Use the **Run Now** button any time to fetch immediately instead of waiting for the daily schedule.

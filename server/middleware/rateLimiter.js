@@ -33,4 +33,31 @@ const cronRunLimiter = rateLimit({
   },
 });
 
-module.exports = { loginLimiter, contactLimiter, cronRunLimiter };
+const askLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many questions sent. Please try again later.',
+  },
+});
+
+const trackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many events.' },
+});
+
+const sharedViewLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts. Please try again later.' },
+});
+
+module.exports = { loginLimiter, contactLimiter, cronRunLimiter, askLimiter, trackLimiter, sharedViewLimiter };

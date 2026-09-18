@@ -12,6 +12,12 @@ const publicMessageRoutes = require('./routes/publicMessageRoutes');
 const adminMessageRoutes = require('./routes/adminMessageRoutes');
 const adminJobRoutes = require('./routes/adminJobRoutes');
 const jobRunRoutes = require('./routes/jobRunRoutes');
+const publicAskRoutes = require('./routes/publicAskRoutes');
+const publicAnalyticsRoutes = require('./routes/publicAnalyticsRoutes');
+const adminAnalyticsRoutes = require('./routes/adminAnalyticsRoutes');
+const adminJobShareRoutes = require('./routes/adminJobShareRoutes');
+const publicJobShareRoutes = require('./routes/publicJobShareRoutes');
+const seoRoutes = require('./routes/seoRoutes');
 const corsOptions = require('./config/corsOptions');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
@@ -42,6 +48,12 @@ app.use('/api/contact', publicMessageRoutes);
 app.use('/api/admin/messages', adminMessageRoutes);
 app.use('/api/admin/jobs', adminJobRoutes);
 app.use('/api/jobs-cron', jobRunRoutes);
+app.use('/api/ask', publicAskRoutes);
+app.use('/api/analytics', publicAnalyticsRoutes);
+app.use('/api/admin/analytics', adminAnalyticsRoutes);
+app.use('/api/admin/job-shares', adminJobShareRoutes);
+app.use('/api/shared/jobs', publicJobShareRoutes);
+app.use('/', seoRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

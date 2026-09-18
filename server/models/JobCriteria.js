@@ -1,11 +1,26 @@
 const mongoose = require('mongoose');
 
+const locationFilterSchema = new mongoose.Schema(
+  {
+    country: { type: String, trim: true, default: '' },
+    state: { type: String, trim: true, default: '' }, // optional
+    city: { type: String, trim: true, default: '' },
+  },
+  { _id: false }
+);
+
 const jobCriteriaSchema = new mongoose.Schema(
   {
-    keywords: {
-      // e.g. ["React", "Node.js", "Full Stack"] — a listing must match
-      // at least one to be considered at the fetch stage (the AI pass
-      // does the finer-grained judgment call after that).
+    mustKeywords: {
+      // A listing must match at least one of these (title/description/tags)
+      // to be considered at all — a hard filter.
+      type: [String],
+      default: [],
+    },
+    niceKeywords: {
+      // Not a filter — passed to the AI pass as a "prefer these" signal so
+      // it can rank/boost otherwise-qualifying listings that also mention
+      // these, without excluding ones that don't.
       type: [String],
       default: [],
     },
@@ -15,12 +30,19 @@ const jobCriteriaSchema = new mongoose.Schema(
       default: 'both',
     },
     locations: {
-      // Only relevant for on-site matching (Arbeitnow supports a location
-      // filter); ignored for remote-only sources.
-      type: [String],
+      // Structured, so the admin can filter by country alone, or narrow to
+      // a state/city — state is optional, city is optional. Only applied
+      // to on-site listings; remote jobs ignore this entirely.
+      type: [locationFilterSchema],
       default: [],
     },
     excludeKeywords: {
+      type: [String],
+      default: [],
+    },
+    excludeCompanies: {
+      // Case-insensitive substring blocklist — a quick "block this company"
+      // action from a job card appends here.
       type: [String],
       default: [],
     },
@@ -30,10 +52,9 @@ const jobCriteriaSchema = new mongoose.Schema(
       default: ['remotive', 'remoteok', 'arbeitnow', 'jobicy'],
     },
     scheduleTime: {
-      // 24h "HH:mm" the admin wants the daily fetch to run — informational
-      // for now (used to configure the external GitHub Actions cron), not
-      // enforced by the server itself, since a sleeping free-tier host
-      // can't run its own internal timer reliably.
+      // 24h "HH:mm" — read by the local scheduler (server/services/jobScheduler.js)
+      // in the timezone set by JOB_SCHEDULE_TIMEZONE. Also used as a
+      // reminder value for whatever you set in the GitHub Actions cron file.
       type: String,
       default: '09:00',
     },

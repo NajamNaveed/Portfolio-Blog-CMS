@@ -3,6 +3,7 @@ const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { slugify, generateUniqueSlug } = require('../utils/slugify');
 const { validateProjectInput } = require('../utils/validateProject');
+const { callAI, isAIConfigured } = require('../services/aiClient');
 
 function fail(message, statusCode) {
   const error = new Error(message);
@@ -210,6 +211,76 @@ const unpublishProject = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, project });
 });
 
+// ---------------- AI-assisted drafting ----------------
+
+const GITHUB_URL_PATTERN = /github\.com\/([^/\s]+)\/([^/\s#?]+)/i;
+
+const draftProjectFromRepo = asyncHandler(async (req, res) => {
+  if (!isAIConfigured()) fail('AI drafting is not configured yet.', 503);
+
+  const { repoUrl } = req.body || {};
+  if (typeof repoUrl !== 'string' || !repoUrl.trim()) fail('repoUrl is required', 400);
+
+  const match = repoUrl.match(GITHUB_URL_PATTERN);
+  if (!match) fail('That does not look like a GitHub repository URL', 400);
+
+  const owner = match[1];
+  const repo = match[2].replace(/\.git$/, '');
+
+  const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'Portfolio-CMS' };
+
+  const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+  if (!repoRes.ok) fail(`Could not fetch repository details from GitHub (${repoRes.status})`, 400);
+  const repoData = await repoRes.json();
+
+  let readme = '';
+  try {
+    const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, { headers });
+    if (readmeRes.ok) {
+      const readmeData = await readmeRes.json();
+      readme = Buffer.from(readmeData.content || '', 'base64').toString('utf-8').slice(0, 6000);
+    }
+  } catch {
+    // README is a nice-to-have for the draft — its absence shouldn't fail the request.
+  }
+
+  const prompt = `Draft portfolio project copy for this GitHub repository. Respond with ONLY a JSON object (no markdown fences), shaped exactly like:
+{"title": "...", "description": "... (max 200 characters, one enticing sentence)", "longDescription": "... (2-4 sentences, more detail)", "technologies": ["..."]}
+
+Repository name: ${repoData.name}
+Repository description: ${repoData.description || '(none provided)'}
+Primary language: ${repoData.language || '(unknown)'}
+Topics: ${(repoData.topics || []).join(', ') || '(none)'}
+
+README (may be truncated):
+${readme || '(no README found)'}`;
+
+  const raw = await callAI({ prompt, temperature: 0.4, maxTokens: 600 });
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end === -1) fail('AI response could not be parsed. Try again.', 502);
+
+  let draft;
+  try {
+    draft = JSON.parse(cleaned.slice(start, end + 1));
+  } catch {
+    fail('AI response could not be parsed. Try again.', 502);
+  }
+
+  res.status(200).json({
+    success: true,
+    draft: {
+      title: draft.title || repoData.name,
+      description: (draft.description || '').slice(0, 300),
+      longDescription: draft.longDescription || '',
+      technologies: Array.isArray(draft.technologies) ? draft.technologies.slice(0, 20) : [],
+      githubUrl: repoData.html_url,
+      liveUrl: repoData.homepage || '',
+    },
+  });
+});
+
 module.exports = {
   getPublicProjects,
   getPublicProjectBySlug,
@@ -220,4 +291,5 @@ module.exports = {
   deleteProject,
   publishProject,
   unpublishProject,
+  draftProjectFromRepo,
 };

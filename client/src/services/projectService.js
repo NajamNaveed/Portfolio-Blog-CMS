@@ -52,6 +52,11 @@ export async function deleteProject(id) {
   return data;
 }
 
+export async function draftProjectFromRepo(repoUrl) {
+  const { data } = await api.post('/admin/projects/draft-from-repo', { repoUrl });
+  return data;
+}
+
 export async function publishProject(id) {
   const { data } = await api.patch(`/admin/projects/${id}/publish`);
   return data;

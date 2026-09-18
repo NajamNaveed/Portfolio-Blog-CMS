@@ -7,6 +7,7 @@ const links = [
   { to: '/admin/posts', label: 'Posts' },
   { to: '/admin/jobs', label: 'Jobs' },
   { to: '/admin/messages', label: 'Messages' },
+  { to: '/admin/analytics', label: 'Analytics' },
 ];
 
 export default function AdminSidebar({ onNavigate }) {

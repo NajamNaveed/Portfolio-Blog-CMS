@@ -1,9 +1,11 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, FileDown } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { useDocumentMeta } from '../../hooks/useDocumentMeta';
+import { trackEvent } from '../../utils/trackEvent';
 
 const TechGlobe = lazy(() => import('../../components/TechGlobe'));
 
@@ -17,9 +19,10 @@ export default function About() {
   const { brand, about, focusAreas, skills } = content;
   const flatSkills = (skills || []).flatMap((g) => g.items);
 
-  useEffect(() => {
-    document.title = `About — ${brand?.name || 'Portfolio'}`;
-  }, [brand?.name]);
+  useDocumentMeta({
+    title: `About — ${brand?.name || 'Portfolio'}`,
+    description: about?.intro,
+  });
 
   return (
     <div className="flex flex-col gap-24 sm:gap-32">
@@ -35,6 +38,7 @@ export default function About() {
               href={about.resumeUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackEvent('resume_download')}
               className="mt-6 inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-paper transition-all hover:border-accent hover:text-accent"
             >
               <FileDown className="size-4" /> Download Résumé

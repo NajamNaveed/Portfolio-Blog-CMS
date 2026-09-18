@@ -1,12 +1,19 @@
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = 'openai/gpt-oss-20b';
+const { callAI, isAIConfigured } = require('./aiClient');
+
 const BATCH_SIZE = 20;
 
 function buildPrompt(criteria, batch) {
   const criteriaText = [
-    `Keywords the person cares about: ${criteria.keywords?.join(', ') || '(none specified)'}`,
+    `Must-have keywords (already filtered — these are guaranteed to appear somewhere): ${criteria.mustKeywords?.join(', ') || '(none specified)'}`,
+    criteria.niceKeywords?.length
+      ? `Nice-to-have keywords (not required, but boost your confidence/score if present): ${criteria.niceKeywords.join(', ')}`
+      : null,
     `Work type wanted: ${criteria.workType}`,
-    criteria.locations?.length ? `Acceptable on-site locations: ${criteria.locations.join(', ')}` : null,
+    criteria.locations?.length
+      ? `Acceptable on-site locations: ${criteria.locations
+          .map((l) => [l.city, l.state, l.country].filter(Boolean).join(', '))
+          .join(' | ')}`
+      : null,
     criteria.excludeKeywords?.length ? `Must NOT involve: ${criteria.excludeKeywords.join(', ')}` : null,
   ]
     .filter(Boolean)
@@ -40,38 +47,17 @@ function extractJsonArray(text) {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
-async function callGroq(prompt, apiKey) {
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-      max_tokens: 2000,
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Groq API request failed (${res.status}): ${body.slice(0, 300)}`);
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
-}
-
 // Judges a list of candidate jobs against the criteria in small batches.
 // If the AI call fails or returns something unparseable for a batch,
 // that batch's jobs are kept as-is (score: null) rather than silently
 // dropped — a broken AI pass should never delete real leads, only skip
 // the extra filtering.
-async function filterJobsWithAI(jobs, criteria, apiKey) {
-  if (!apiKey || jobs.length === 0) {
-    return { results: jobs.map((job) => ({ ...job, aiScore: null, aiReason: '' })), errors: apiKey ? [] : ['No AI API key configured — skipped AI filtering.'] };
+async function filterJobsWithAI(jobs, criteria) {
+  if (!isAIConfigured() || jobs.length === 0) {
+    return {
+      results: jobs.map((job) => ({ ...job, aiScore: null, aiReason: '' })),
+      errors: isAIConfigured() ? [] : ['No AI API key configured — skipped AI filtering.'],
+    };
   }
 
   const results = [];
@@ -81,7 +67,7 @@ async function filterJobsWithAI(jobs, criteria, apiKey) {
     const batch = jobs.slice(i, i + BATCH_SIZE);
     try {
       // eslint-disable-next-line no-await-in-loop
-      const content = await callGroq(buildPrompt(criteria, batch), apiKey);
+      const content = await callAI({ prompt: buildPrompt(criteria, batch), temperature: 0.1, maxTokens: 2000 });
       const verdicts = extractJsonArray(content);
 
       batch.forEach((job, idx) => {

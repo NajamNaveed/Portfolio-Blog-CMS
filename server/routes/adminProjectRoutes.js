@@ -7,6 +7,7 @@ const {
   deleteProject,
   publishProject,
   unpublishProject,
+  draftProjectFromRepo,
 } = require('../controllers/projectController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -17,6 +18,7 @@ router.use(protect, requireAdmin);
 router.get('/', getAdminProjects);
 router.get('/:id', getAdminProjectById);
 router.post('/', createProject);
+router.post('/draft-from-repo', draftProjectFromRepo);
 router.put('/:id', updateProject);
 router.delete('/:id', deleteProject);
 router.patch('/:id/publish', publishProject);

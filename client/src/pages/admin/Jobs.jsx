@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, RefreshCw, Ban, Copy, Check } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorMessage from '../../components/ErrorMessage';
 import EmptyState from '../../components/EmptyState';
@@ -10,9 +10,11 @@ import {
   updateJobCriteria,
   getJobs,
   updateJobStatus,
+  blockCompany,
   deleteJob,
   runJobFetchNow,
 } from '../../services/jobService';
+import { createJobShareLink, getJobShareLinks, deleteJobShareLink } from '../../services/jobShareService';
 
 const inputClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900';
@@ -35,25 +37,29 @@ export default function Jobs() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Jobs</h1>
-        <div className="flex gap-2 rounded-md border border-gray-200 p-1">
-          <button
-            type="button"
-            onClick={() => setTab('listings')}
-            className={`rounded px-3 py-1.5 text-sm font-medium ${tab === 'listings' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            Listings
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('settings')}
-            className={`rounded px-3 py-1.5 text-sm font-medium ${tab === 'settings' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            Settings
-          </button>
+        <div className="flex flex-wrap gap-2 rounded-md border border-gray-200 p-1">
+          {[
+            ['listings', 'Listings'],
+            ['settings', 'Settings'],
+            ['share', 'Share Access'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`rounded px-3 py-1.5 text-sm font-medium ${tab === key ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="mt-6">{tab === 'listings' ? <JobListings /> : <JobSettings />}</div>
+      <div className="mt-6">
+        {tab === 'listings' && <JobListings />}
+        {tab === 'settings' && <JobSettings />}
+        {tab === 'share' && <ShareAccess />}
+      </div>
     </div>
   );
 }
@@ -62,6 +68,7 @@ function JobListings() {
   const [statusFilter, setStatusFilter] = useState('new');
   const [jobs, setJobs] = useState([]);
   const [counts, setCounts] = useState({});
+  const [bySource, setBySource] = useState({});
   const [status, setStatus] = useState('loading');
   const [actionError, setActionError] = useState('');
   const [running, setRunning] = useState(false);
@@ -73,6 +80,7 @@ function JobListings() {
       const data = await getJobs({ status: statusFilter, limit: 100 });
       setJobs(data.jobs);
       setCounts(data.statusCounts || {});
+      setBySource(data.bySource || {});
       setStatus('success');
     } catch {
       setStatus('error');
@@ -109,6 +117,20 @@ function JobListings() {
     }
   }
 
+  async function handleBlockCompany(job) {
+    const confirmed = window.confirm(
+      `Block "${job.company}"? This hides all their current jobs and skips them in future fetches.`
+    );
+    if (!confirmed) return;
+    setActionError('');
+    try {
+      await blockCompany(job._id);
+      setJobs((prev) => prev.filter((j) => j.company !== job.company));
+    } catch (err) {
+      setActionError(getErrorMessage(err, 'Unable to block this company.'));
+    }
+  }
+
   async function handleDelete(job) {
     const confirmed = window.confirm(`Delete "${job.title}" at ${job.company}?`);
     if (!confirmed) return;
@@ -120,6 +142,8 @@ function JobListings() {
       setActionError(getErrorMessage(err, 'Unable to delete this job.'));
     }
   }
+
+  const sourceTotal = Object.values(bySource).reduce((a, b) => a + b, 0);
 
   return (
     <div>
@@ -149,12 +173,24 @@ function JobListings() {
         </button>
       </div>
 
+      {sourceTotal > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-500">
+          <span className="font-medium text-gray-700">By source:</span>
+          {Object.entries(bySource).map(([source, count]) => (
+            <span key={source} className="rounded-full bg-gray-100 px-2 py-0.5 capitalize">
+              {source}: {count}
+            </span>
+          ))}
+        </div>
+      )}
+
       {runSummary && (
         <div className="mt-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           Fetched {runSummary.fetched} listings, {runSummary.matchedCriteria} matched your criteria,{' '}
-          {runSummary.inserted} new job{runSummary.inserted === 1 ? '' : 's'} added.
+          {runSummary.inserted} new job{runSummary.inserted === 1 ? '' : 's'} added
+          {runSummary.staleExpired > 0 ? `, ${runSummary.staleExpired} marked expired` : ''}.
           {runSummary.errors?.length > 0 && (
-            <span className="block mt-1 text-amber-700">{runSummary.errors.length} warning(s) — check server logs.</span>
+            <span className="mt-1 block text-amber-700">{runSummary.errors.length} warning(s) — check server logs.</span>
           )}
         </div>
       )}
@@ -173,7 +209,7 @@ function JobListings() {
         {status === 'success' && jobs.length > 0 && (
           <div className="flex flex-col gap-4">
             {jobs.map((job) => (
-              <div key={job._id} className="rounded-lg border border-gray-200 p-4">
+              <div key={job._id} className={`rounded-lg border p-4 ${job.expired ? 'border-gray-200 bg-gray-50 opacity-70' : 'border-gray-200'}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -185,6 +221,11 @@ function JobListings() {
                       {job.aiScore != null && (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                           AI match {Math.round(job.aiScore * 100)}%
+                        </span>
+                      )}
+                      {job.expired && (
+                        <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                          Expired
                         </span>
                       )}
                     </div>
@@ -224,6 +265,13 @@ function JobListings() {
                       Mark {label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => handleBlockCompany(job)}
+                    className="inline-flex items-center gap-1 rounded font-medium text-amber-700 hover:underline"
+                  >
+                    <Ban className="size-3.5" /> Block company
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(job)}
@@ -285,6 +333,20 @@ function JobSettings() {
     );
   }
 
+  function updateLocation(index, key, value) {
+    const next = [...(criteria.locations || [])];
+    next[index] = { ...next[index], [key]: value };
+    updateField('locations', next);
+  }
+
+  function addLocation() {
+    updateField('locations', [...(criteria.locations || []), { country: '', state: '', city: '' }]);
+  }
+
+  function removeLocation(index) {
+    updateField('locations', (criteria.locations || []).filter((_, i) => i !== index));
+  }
+
   function toggleSource(source) {
     const current = criteria.sources || [];
     updateField('sources', current.includes(source) ? current.filter((s) => s !== source) : [...current, source]);
@@ -297,9 +359,11 @@ function JobSettings() {
     setSaved(false);
     try {
       const payload = {
-        keywords: (criteria.keywords || []).map((k) => k.trim()).filter(Boolean),
+        mustKeywords: (criteria.mustKeywords || []).map((k) => k.trim()).filter(Boolean),
+        niceKeywords: (criteria.niceKeywords || []).map((k) => k.trim()).filter(Boolean),
         excludeKeywords: (criteria.excludeKeywords || []).map((k) => k.trim()).filter(Boolean),
-        locations: (criteria.locations || []).map((l) => l.trim()).filter(Boolean),
+        excludeCompanies: (criteria.excludeCompanies || []).map((k) => k.trim()).filter(Boolean),
+        locations: (criteria.locations || []).filter((l) => l.country || l.state || l.city),
         workType: criteria.workType,
         sources: criteria.sources,
         scheduleTime: criteria.scheduleTime,
@@ -329,18 +393,34 @@ function JobSettings() {
       {saved && <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">Settings saved.</div>}
 
       <section className="rounded-lg border border-gray-200 p-5">
-        <h2 className="text-lg font-semibold text-gray-900">Keywords</h2>
-        <p className="mt-1 text-sm text-gray-500">A job must match at least one of these (in its title, description, or tags) to be considered.</p>
+        <h2 className="text-lg font-semibold text-gray-900">Must-Have Keywords</h2>
+        <p className="mt-1 text-sm text-gray-500">A job must match at least one of these (title, description, or tags) to be considered at all.</p>
         <div className="mt-4">
-          <TagListEditor field="keywords" criteria={criteria} onChange={updateTagList} onAdd={addTag} onRemove={removeTag} placeholder="e.g. React" />
+          <TagListEditor field="mustKeywords" criteria={criteria} onChange={updateTagList} onAdd={addTag} onRemove={removeTag} placeholder="e.g. React" />
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-gray-200 p-5">
+        <h2 className="text-lg font-semibold text-gray-900">Nice-to-Have Keywords</h2>
+        <p className="mt-1 text-sm text-gray-500">Not required — these boost the AI's confidence score for jobs that also mention them, without excluding jobs that don't.</p>
+        <div className="mt-4">
+          <TagListEditor field="niceKeywords" criteria={criteria} onChange={updateTagList} onAdd={addTag} onRemove={removeTag} placeholder="e.g. TypeScript" />
         </div>
       </section>
 
       <section className="rounded-lg border border-gray-200 p-5">
         <h2 className="text-lg font-semibold text-gray-900">Exclude Keywords</h2>
-        <p className="mt-1 text-sm text-gray-500">A job containing any of these will always be skipped, regardless of other matches.</p>
+        <p className="mt-1 text-sm text-gray-500">A job containing any of these will always be skipped.</p>
         <div className="mt-4">
           <TagListEditor field="excludeKeywords" criteria={criteria} onChange={updateTagList} onAdd={addTag} onRemove={removeTag} placeholder="e.g. Senior" />
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-gray-200 p-5">
+        <h2 className="text-lg font-semibold text-gray-900">Blocked Companies</h2>
+        <p className="mt-1 text-sm text-gray-500">Jobs from these companies are always skipped. You can also block a company directly from a job card in Listings.</p>
+        <div className="mt-4">
+          <TagListEditor field="excludeCompanies" criteria={criteria} onChange={updateTagList} onAdd={addTag} onRemove={removeTag} placeholder="e.g. Acme Staffing" />
         </div>
       </section>
 
@@ -364,9 +444,45 @@ function JobSettings() {
       {criteria.workType !== 'remote' && (
         <section className="rounded-lg border border-gray-200 p-5">
           <h2 className="text-lg font-semibold text-gray-900">On-site Locations</h2>
-          <p className="mt-1 text-sm text-gray-500">Only used for on-site listings — remote jobs ignore this.</p>
-          <div className="mt-4">
-            <TagListEditor field="locations" criteria={criteria} onChange={updateTagList} onAdd={addTag} onRemove={removeTag} placeholder="e.g. Lahore" />
+          <p className="mt-1 text-sm text-gray-500">
+            Only used for on-site listings — remote jobs ignore this. Country is the main filter; state and city are
+            optional and narrow it further. A job matches if it satisfies ANY one of the location rows below.
+          </p>
+          <div className="mt-4 flex flex-col gap-3">
+            {(criteria.locations || []).map((loc, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <div className="grid flex-1 gap-2 sm:grid-cols-3">
+                  <input
+                    className={inputClass}
+                    placeholder="Country (e.g. Pakistan)"
+                    value={loc.country || ''}
+                    onChange={(e) => updateLocation(i, 'country', e.target.value)}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="State/Province (optional)"
+                    value={loc.state || ''}
+                    onChange={(e) => updateLocation(i, 'state', e.target.value)}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="City (optional)"
+                    value={loc.city || ''}
+                    onChange={(e) => updateLocation(i, 'city', e.target.value)}
+                  />
+                </div>
+                <button type="button" onClick={() => removeLocation(i)} className="mt-1 shrink-0 rounded-md p-2 text-red-600 hover:bg-red-50">
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addLocation}
+              className="inline-flex w-fit items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-900"
+            >
+              <Plus className="size-4" /> Add location
+            </button>
           </div>
         </section>
       )}
@@ -386,8 +502,9 @@ function JobSettings() {
       <section className="rounded-lg border border-gray-200 p-5">
         <h2 className="text-lg font-semibold text-gray-900">Daily Schedule</h2>
         <p className="mt-1 text-sm text-gray-500">
-          The time you want the daily automated fetch to run. This is informational — set the same time in your GitHub
-          Actions workflow's cron schedule (see the setup guide).
+          The server checks this time automatically while it's running (see the local scheduler in
+          JOBS_FEATURE_SETUP.md). Also set the same time in your GitHub Actions workflow for reliable fetching once
+          deployed.
         </p>
         <div className="mt-3 max-w-[200px]">
           <label className={labelClass}>Time (24h)</label>
@@ -405,6 +522,150 @@ function JobSettings() {
         </button>
       </div>
     </form>
+  );
+}
+
+function ShareAccess() {
+  const [links, setLinks] = useState([]);
+  const [status, setStatus] = useState('loading');
+  const [label, setLabel] = useState('');
+  const [expiresInDays, setExpiresInDays] = useState('');
+  const [passcode, setPasscode] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
+
+  async function fetchLinks() {
+    setStatus('loading');
+    try {
+      const data = await getJobShareLinks();
+      setLinks(data);
+      setStatus('success');
+    } catch {
+      setStatus('error');
+    }
+  }
+
+  useEffect(() => {
+    fetchLinks();
+  }, []);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    setCreating(true);
+    setError('');
+    try {
+      await createJobShareLink({
+        label: label.trim(),
+        expiresInDays: expiresInDays ? Number(expiresInDays) : undefined,
+        passcode: passcode.trim() || undefined,
+      });
+      setLabel('');
+      setExpiresInDays('');
+      setPasscode('');
+      await fetchLinks();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to create share link.'));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleRevoke(id) {
+    const confirmed = window.confirm('Revoke this link? Anyone using it will immediately lose access.');
+    if (!confirmed) return;
+    try {
+      await deleteJobShareLink(id);
+      setLinks((prev) => prev.filter((l) => l._id !== id));
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to revoke this link.'));
+    }
+  }
+
+  function copyLink(link) {
+    const url = `${window.location.origin}/shared/jobs/${link.token}`;
+    navigator.clipboard?.writeText(url);
+    setCopiedId(link._id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <section className="rounded-lg border border-gray-200 p-5">
+        <h2 className="text-lg font-semibold text-gray-900">Create a Share Link</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Anyone with this link can view your job listings (read-only — no edit, delete, or Run Now access, and no
+          access to any other admin section). Revoke it any time.
+        </p>
+        <form onSubmit={handleCreate} className="mt-4 grid gap-3 sm:grid-cols-3">
+          <input className={inputClass} placeholder="Label (e.g. For Ahmed)" value={label} onChange={(e) => setLabel(e.target.value)} />
+          <input
+            className={inputClass}
+            type="number"
+            min="1"
+            max="365"
+            placeholder="Expires in days (optional)"
+            value={expiresInDays}
+            onChange={(e) => setExpiresInDays(e.target.value)}
+          />
+          <input
+            className={inputClass}
+            type="text"
+            placeholder="Passcode (optional)"
+            value={passcode}
+            onChange={(e) => setPasscode(e.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={creating}
+            className="sm:col-span-3 w-fit rounded-md bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {creating ? 'Creating…' : 'Create Link'}
+          </button>
+        </form>
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900">Active Links</h2>
+        <div className="mt-4">
+          {status === 'loading' && <LoadingSpinner />}
+          {status === 'error' && <ErrorMessage message="Couldn't load share links." onRetry={fetchLinks} />}
+          {status === 'success' && links.length === 0 && <EmptyState message="No share links yet." />}
+          {status === 'success' && links.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {links.map((link) => {
+                const expired = link.expiresAt && new Date(link.expiresAt) < new Date();
+                return (
+                  <div key={link._id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 p-4">
+                    <div>
+                      <p className="font-medium text-gray-900">{link.label || 'Untitled link'}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {link.expiresAt ? `Expires ${formatDate(link.expiresAt)}` : 'Never expires'}
+                        {expired && <span className="ml-1 font-medium text-red-600">(expired)</span>}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Viewed {link.viewCount || 0} time{link.viewCount === 1 ? '' : 's'}
+                        {link.lastViewedAt ? ` · last viewed ${formatDate(link.lastViewedAt)}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <button type="button" onClick={() => copyLink(link)} className="inline-flex items-center gap-1 font-medium text-gray-900 hover:underline">
+                        {copiedId === link._id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                        {copiedId === link._id ? 'Copied' : 'Copy link'}
+                      </button>
+                      <button type="button" onClick={() => handleRevoke(link._id)} className="font-medium text-red-700 hover:underline">
+                        Revoke
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 

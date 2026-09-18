@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /admin
+Allow: /
+
+# Replace with your actual deployed backend URL once you know it
+# (a Sitemap: directive can point to a different domain than the one
+# serving this robots.txt — that's expected and fine for split
+# frontend/backend deployments like this one).
+Sitemap: https://YOUR-BACKEND-URL.onrender.com/sitemap.xml

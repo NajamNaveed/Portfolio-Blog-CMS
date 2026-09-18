@@ -4,6 +4,7 @@ const {
   updateCriteria,
   getJobs,
   updateJobStatus,
+  blockCompany,
   deleteJob,
   runNow,
 } = require('../controllers/jobController');
@@ -17,6 +18,7 @@ router.get('/criteria', getCriteria);
 router.put('/criteria', updateCriteria);
 router.get('/', getJobs);
 router.patch('/:id/status', updateJobStatus);
+router.post('/:id/block-company', blockCompany);
 router.delete('/:id', deleteJob);
 router.post('/run', runNow);
 

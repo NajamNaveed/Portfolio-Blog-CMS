@@ -9,6 +9,7 @@ import Projects from './pages/public/Projects';
 import Blog from './pages/public/Blog';
 import BlogPost from './pages/public/BlogPost';
 import Contact from './pages/public/Contact';
+import SharedJobs from './pages/public/SharedJobs';
 
 import Login from './pages/admin/Login';
 import Dashboard from './pages/admin/Dashboard';
@@ -21,6 +22,7 @@ import EditProject from './pages/admin/EditProject';
 import SiteContentEditor from './pages/admin/SiteContentEditor';
 import Messages from './pages/admin/Messages';
 import Jobs from './pages/admin/Jobs';
+import Analytics from './pages/admin/Analytics';
 
 export default function App() {
   return (
@@ -33,6 +35,9 @@ export default function App() {
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/contact" element={<Contact />} />
       </Route>
+
+      {/* Standalone — no site nav/footer, meant for external guest viewing only */}
+      <Route path="/shared/jobs/:token" element={<SharedJobs />} />
 
       <Route path="/admin/login" element={<Login />} />
 
@@ -54,6 +59,7 @@ export default function App() {
         <Route path="projects/:id/edit" element={<EditProject />} />
         <Route path="messages" element={<Messages />} />
         <Route path="jobs" element={<Jobs />} />
+        <Route path="analytics" element={<Analytics />} />
       </Route>
     </Routes>
   );

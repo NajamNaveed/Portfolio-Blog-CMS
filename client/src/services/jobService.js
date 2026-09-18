@@ -25,6 +25,11 @@ export async function deleteJob(id) {
   return data;
 }
 
+export async function blockCompany(id) {
+  const { data } = await api.post(`/admin/jobs/${id}/block-company`);
+  return data;
+}
+
 export async function runJobFetchNow() {
   const { data } = await api.post('/admin/jobs/run');
   return data.summary;

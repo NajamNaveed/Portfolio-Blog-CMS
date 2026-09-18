@@ -9,7 +9,9 @@ import EmptyState from '../../components/EmptyState';
 import Modal from '../../components/Modal';
 import { getPublicPosts } from '../../services/postService';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { resolveTechIcon } from '../../utils/iconMap';
+import { trackEvent } from '../../utils/trackEvent';
 
 function RotatingRoles({ roles }) {
   const [index, setIndex] = useState(0);
@@ -62,8 +64,12 @@ export default function Home() {
     }
   }
 
+  useDocumentMeta({
+    title: `${content.brand?.name || 'Portfolio'} — ${content.brand?.role || 'Developer'}`,
+    description: hero?.description,
+  });
+
   useEffect(() => {
-    document.title = `${content.brand?.name || 'Portfolio'} — ${content.brand?.role || 'Developer'}`;
     fetchFeatured();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content.brand?.name]);
@@ -131,6 +137,7 @@ export default function Home() {
         >
           <Link
             to={hero?.primaryCta?.href || '/projects'}
+            onClick={() => trackEvent('hero_cta', 'primary')}
             className="group inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-ink transition-transform duration-300 hover:-translate-y-0.5"
           >
             {hero?.primaryCta?.label || 'View Projects'}
@@ -138,6 +145,7 @@ export default function Home() {
           </Link>
           <Link
             to={hero?.secondaryCta?.href || '/contact'}
+            onClick={() => trackEvent('hero_cta', 'secondary')}
             className="group inline-flex items-center gap-2 rounded-full border border-line px-6 py-3 text-sm font-semibold text-paper transition-all duration-300 hover:-translate-y-0.5 hover:border-accent hover:text-accent"
           >
             {hero?.secondaryCta?.label || 'Get In Touch'}

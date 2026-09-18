@@ -6,6 +6,7 @@ import ErrorMessage from '../../components/ErrorMessage';
 import EmptyState from '../../components/EmptyState';
 import { getPublicPosts } from '../../services/postService';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 
 export default function Blog() {
   const { content } = useSiteContent();
@@ -23,8 +24,12 @@ export default function Blog() {
     }
   }
 
+  useDocumentMeta({
+    title: `Blog — ${content.brand?.name || 'Portfolio'}`,
+    description: 'Articles on full stack development, tools, and things learned while building projects.',
+  });
+
   useEffect(() => {
-    document.title = `Blog — ${content.brand?.name || 'Portfolio'}`;
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content.brand?.name]);

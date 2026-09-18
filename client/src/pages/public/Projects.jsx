@@ -9,6 +9,8 @@ import EmptyState from '../../components/EmptyState';
 import Modal from '../../components/Modal';
 import { getPublicProjects, getPublicProjectBySlug } from '../../services/projectService';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { useDocumentMeta } from '../../hooks/useDocumentMeta';
+import { trackEvent } from '../../utils/trackEvent';
 
 export default function Projects() {
   const { content } = useSiteContent();
@@ -28,8 +30,12 @@ export default function Projects() {
     }
   }
 
+  useDocumentMeta({
+    title: `Projects — ${content.brand?.name || 'Portfolio'}`,
+    description: 'A selection of projects showcasing web development, systems design, and real-time communication.',
+  });
+
   useEffect(() => {
-    document.title = `Projects — ${content.brand?.name || 'Portfolio'}`;
     fetchProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content.brand?.name]);
@@ -37,6 +43,7 @@ export default function Projects() {
   async function openProject(project) {
     setActiveProject(project);
     setDetailStatus('loading');
+    trackEvent('project_view', project.title);
     try {
       const data = await getPublicProjectBySlug(project.slug);
       setActiveProject(data.project);

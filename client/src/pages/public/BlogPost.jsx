@@ -9,6 +9,7 @@ import { formatDate } from '../../utils/formatDate';
 import { markdownComponents } from '../../utils/markdownComponents';
 import { getPublicPostBySlug } from '../../services/postService';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 
 export default function BlogPost() {
   const { slug } = useParams();
@@ -22,11 +23,17 @@ export default function BlogPost() {
       const data = await getPublicPostBySlug(slug);
       setPost(data.post);
       setStatus('success');
-      document.title = `${data.post.title} — ${content.brand?.name || 'Portfolio'}`;
     } catch (err) {
       setStatus(err.response?.status === 404 ? 'notfound' : 'error');
     }
   }
+
+  useDocumentMeta({
+    title: post ? `${post.title} — ${content.brand?.name || 'Portfolio'}` : content.brand?.name,
+    description: post?.excerpt,
+    image: post?.coverImage,
+    type: 'article',
+  });
 
   useEffect(() => {
     fetchPost();

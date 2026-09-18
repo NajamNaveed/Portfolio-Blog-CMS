@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import AskWidget from '../components/AskWidget';
 
 export default function PublicLayout() {
   const { pathname } = useLocation();
@@ -17,6 +18,7 @@ export default function PublicLayout() {
         <Outlet />
       </main>
       <Footer />
+      <AskWidget />
     </div>
   );
 }

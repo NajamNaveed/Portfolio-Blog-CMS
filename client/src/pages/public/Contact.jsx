@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Mail, MapPin, Send, Loader2 } from 'lucide-react';
 import { sendContactMessage } from '../../services/messageService';
 import { getErrorMessage } from '../../utils/getErrorMessage';
 import { useSiteContent } from '../../hooks/useSiteContent';
+import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { resolveLucideIcon } from '../../utils/iconMap';
 
 const EMPTY_FORM = { name: '', email: '', subject: '', message: '' };
@@ -16,9 +17,10 @@ export default function Contact() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    document.title = `Contact — ${brand?.name || 'Portfolio'}`;
-  }, [brand?.name]);
+  useDocumentMeta({
+    title: `Contact — ${brand?.name || 'Portfolio'}`,
+    description: `Get in touch with ${brand?.name || 'me'} about your next project.`,
+  });
 
   function handleChange(e) {
     const { name, value } = e.target;
