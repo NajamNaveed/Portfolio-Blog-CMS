@@ -91,11 +91,86 @@ async function fetchJobicy() {
   }));
 }
 
+async function fetchHimalayas() {
+  // Himalayas hard-caps each page at 20 regardless of the `limit` param,
+  // so two pages (offset 0 and 20) gets us up to 40 listings per run.
+  const pages = await Promise.all(
+    [0, 20].map((offset) => fetchJson(`https://himalayas.app/jobs/api?limit=20&offset=${offset}`))
+  );
+  const jobs = pages.flatMap((p) => p.jobs || []);
+  return jobs.map((job) => ({
+    title: job.title,
+    company: job.companyName,
+    location: (job.locationRestrictions || []).join(', ') || 'Worldwide',
+    remote: true,
+    url: job.applicationLink,
+    description: stripHtml(job.excerpt || job.description || ''),
+    tags: job.categories || [],
+    source: 'himalayas',
+    postedAt: job.publishedAt ? new Date(job.publishedAt * 1000) : null,
+  }));
+}
+
+function parseRssItems(xml) {
+  const items = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+  let match = itemRegex.exec(xml);
+  while (match) {
+    const block = match[1];
+    const get = (tag) => {
+      const tagMatch = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
+      return tagMatch ? tagMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : '';
+    };
+    items.push({
+      title: get('title'),
+      link: get('link'),
+      description: get('description'),
+      pubDate: get('pubDate'),
+      region: get('region'),
+    });
+    match = itemRegex.exec(xml);
+  }
+  return items;
+}
+
+async function fetchWeWorkRemotely() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let xml;
+  try {
+    const res = await fetch('https://weworkremotely.com/remote-jobs.rss', { signal: controller.signal });
+    if (!res.ok) throw new Error(`WeWorkRemotely RSS request failed with status ${res.status}`);
+    xml = await res.text();
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  // WWR's RSS bakes the company into the title as "Company: Role" rather
+  // than giving it as a separate field.
+  return parseRssItems(xml).map((item) => {
+    const [company, ...rest] = item.title.split(':');
+    const title = rest.join(':').trim() || item.title;
+    return {
+      title,
+      company: rest.length ? company.trim() : 'Unknown',
+      location: item.region || 'Remote',
+      remote: true,
+      url: item.link,
+      description: stripHtml(item.description),
+      tags: [],
+      source: 'weworkremotely',
+      postedAt: item.pubDate ? new Date(item.pubDate) : null,
+    };
+  });
+}
+
 const SOURCE_FETCHERS = {
   remotive: fetchRemotive,
   remoteok: fetchRemoteOK,
   arbeitnow: fetchArbeitnow,
   jobicy: fetchJobicy,
+  himalayas: fetchHimalayas,
+  weworkremotely: fetchWeWorkRemotely,
 };
 
 // Fetches every requested source in parallel; a single source failing

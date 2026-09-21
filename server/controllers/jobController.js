@@ -4,6 +4,7 @@ const JobCriteria = require('../models/JobCriteria');
 const { getOrCreateJobCriteria } = JobCriteria;
 const asyncHandler = require('../utils/asyncHandler');
 const { runJobFetchPipeline } = require('../services/jobPipeline');
+const { buildDedupeKey } = require('../services/jobMatcher');
 
 function fail(message, statusCode) {
   const error = new Error(message);
@@ -16,7 +17,7 @@ function isValidObjectId(id) {
 }
 
 const ALLOWED_STATUSES = ['new', 'interested', 'applied', 'rejected', 'hidden'];
-const ALLOWED_SOURCES = ['remotive', 'remoteok', 'arbeitnow', 'jobicy'];
+const ALLOWED_SOURCES = ['remotive', 'remoteok', 'arbeitnow', 'jobicy', 'himalayas', 'weworkremotely'];
 const ALLOWED_WORK_TYPES = ['remote', 'onsite', 'both'];
 
 const DEFAULT_LIMIT = 30;
@@ -161,6 +162,49 @@ const deleteJob = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: 'Job deleted' });
 });
 
+const deleteAllJobs = asyncHandler(async (req, res) => {
+  const result = await Job.deleteMany({});
+  res.status(200).json({ success: true, deletedCount: result.deletedCount });
+});
+
+const deleteExpiredJobs = asyncHandler(async (req, res) => {
+  const result = await Job.deleteMany({ expired: true });
+  res.status(200).json({ success: true, deletedCount: result.deletedCount });
+});
+
+// Covers sources with no free API (e.g. Rozee.pk and other Pakistani
+// boards) — paste in a listing by hand and it flows through the exact
+// same status pipeline (New → Interested → Applied → ...) as fetched
+// jobs, just without the AI relevance pass since you already chose it.
+const addManualJob = asyncHandler(async (req, res) => {
+  const { title, company, location, remote, url, description, tags } = req.body || {};
+
+  if (typeof title !== 'string' || !title.trim()) fail('Title is required', 400);
+  if (typeof company !== 'string' || !company.trim()) fail('Company is required', 400);
+  if (typeof url !== 'string' || !url.trim()) fail('URL is required', 400);
+  try {
+    // eslint-disable-next-line no-new
+    new URL(url);
+  } catch {
+    fail('URL must be a valid URL', 400);
+  }
+
+  const job = await Job.create({
+    title: title.trim().slice(0, 200),
+    company: company.trim().slice(0, 150),
+    location: typeof location === 'string' ? location.trim().slice(0, 200) : '',
+    remote: Boolean(remote),
+    url: url.trim(),
+    description: typeof description === 'string' ? description.trim().slice(0, 2000) : '',
+    tags: Array.isArray(tags) ? tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 20) : [],
+    source: 'manual',
+    dedupeKey: buildDedupeKey({ title, company }),
+    status: 'new',
+  });
+
+  res.status(201).json({ success: true, job });
+});
+
 // ---------------- Run pipeline ----------------
 // Shared by the admin "Run Now" button (JWT-protected route) and the
 // external cron trigger (secret-token-protected route) — both just call
@@ -178,5 +222,8 @@ module.exports = {
   updateJobStatus,
   blockCompany,
   deleteJob,
+  deleteAllJobs,
+  deleteExpiredJobs,
+  addManualJob,
   runNow,
 };

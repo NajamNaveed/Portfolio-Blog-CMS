@@ -30,6 +30,21 @@ export async function blockCompany(id) {
   return data;
 }
 
+export async function deleteAllJobs() {
+  const { data } = await api.delete('/admin/jobs/all');
+  return data;
+}
+
+export async function deleteExpiredJobs() {
+  const { data } = await api.delete('/admin/jobs/expired');
+  return data;
+}
+
+export async function addManualJob(payload) {
+  const { data } = await api.post('/admin/jobs/manual', payload);
+  return data.job;
+}
+
 export async function runJobFetchNow() {
   const { data } = await api.post('/admin/jobs/run');
   return data.summary;

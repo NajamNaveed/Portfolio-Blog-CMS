@@ -11,6 +11,8 @@ export default function AskWidget() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [remaining, setRemaining] = useState(null);
+  const [limitReached, setLimitReached] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export default function AskWidget() {
   async function handleSubmit(e) {
     e.preventDefault();
     const question = input.trim();
-    if (!question || sending) return;
+    if (!question || sending || limitReached) return;
 
     setError('');
     const nextMessages = [...messages, { role: 'user', content: question }];
@@ -29,9 +31,14 @@ export default function AskWidget() {
     setSending(true);
 
     try {
-      const answer = await askAboutWork(question, nextMessages.slice(-6));
-      setMessages((prev) => [...prev, { role: 'assistant', content: answer }]);
+      const data = await askAboutWork(question, nextMessages.slice(-6));
+      setMessages((prev) => [...prev, { role: 'assistant', content: data.answer }]);
+      setRemaining(data.remaining);
     } catch (err) {
+      if (err.response?.status === 429) {
+        setLimitReached(true);
+        setRemaining(0);
+      }
       setError(err.response?.data?.message || "Sorry, I couldn't answer that right now.");
     } finally {
       setSending(false);
@@ -67,10 +74,15 @@ export default function AskWidget() {
               <span className="flex size-8 items-center justify-center rounded-full bg-accent/10 text-accent">
                 <Sparkles className="size-4" />
               </span>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-paper">Ask about my work</p>
                 <p className="text-xs text-stone">AI-powered, answers from {content.brand?.name || 'my'} real profile</p>
               </div>
+              {remaining !== null && !limitReached && (
+                <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] text-stone-dim">
+                  {remaining} left today
+                </span>
+              )}
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
@@ -107,13 +119,14 @@ export default function AskWidget() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Type a question…"
+                placeholder={limitReached ? "Today's limit reached — try again tomorrow" : 'Type a question…'}
                 maxLength={500}
-                className="flex-1 rounded-full border border-line bg-ink px-4 py-2.5 text-sm text-paper outline-none placeholder:text-stone-dim focus:border-accent"
+                disabled={limitReached}
+                className="flex-1 rounded-full border border-line bg-ink px-4 py-2.5 text-sm text-paper outline-none placeholder:text-stone-dim focus:border-accent disabled:opacity-50"
               />
               <button
                 type="submit"
-                disabled={sending || !input.trim()}
+                disabled={sending || !input.trim() || limitReached}
                 aria-label="Send"
                 className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-ink transition-opacity disabled:opacity-50"
               >

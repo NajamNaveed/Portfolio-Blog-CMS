@@ -49,4 +49,7 @@ All three follow the exact same `asyncHandler` / whitelist-validator / `protect`
 
 - The 3D globe's technology icons are matched from a curated list (`client/src/utils/iconMap.js`) for bundle-size reasons — Simple Icons has 3,400+ logos and importing all of them would bloat the build. If you add a technology whose icon isn't in that curated list, it falls back to a generic icon; add it to `iconMap.js` if you want the exact logo.
 - `about.resumeUrl` in Site Content lets you link a hosted résumé PDF — leave blank to hide the download button.
-- Consider adding image upload (e.g. Cloudinary) later — right now cover images are plain URLs, same as your existing blog post covers.
+## 6. Ask About My Work — usage limiting
+
+Since there's no account system, the public "Ask about my work" widget limits usage per visitor by IP address, tracked in the database (not in-memory) so the limit survives server restarts and isn't reset by refreshing the page. Default is 15 questions/day per IP, configurable via `ASK_DAILY_LIMIT` in `server/.env`. This is deliberately simple (no CAPTCHA, no accounts, no added latency beyond one small DB lookup) — it won't stop someone determined to rotate IPs, but it stops casual abuse from burning through your AI provider's free quota, which is the realistic threat for a personal portfolio.
+

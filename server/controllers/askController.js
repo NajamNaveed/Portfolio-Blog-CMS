@@ -1,15 +1,43 @@
 const { getOrCreateSiteContent } = require('../models/SiteContent');
 const Project = require('../models/Project');
+const AskUsage = require('../models/AskUsage');
 const asyncHandler = require('../utils/asyncHandler');
 const { callAI, isAIConfigured } = require('../services/aiClient');
 
 const MAX_QUESTION_LENGTH = 500;
 const MAX_HISTORY_MESSAGES = 6;
+const DAILY_LIMIT = Number(process.env.ASK_DAILY_LIMIT) || 15;
 
 function fail(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
   throw error;
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD" (UTC)
+}
+
+// Backed by MongoDB rather than in-memory, so the cap survives server
+// restarts — important on a free-tier host that sleeps/wakes often,
+// where an in-memory counter would silently reset each time. Keyed by
+// IP since there's no account system; not perfect (shared IPs, VPNs),
+// but requires no login and can't be reset just by refreshing the page.
+async function checkAndIncrementUsage(ip) {
+  const date = todayKey();
+  const existing = await AskUsage.findOne({ ip, date });
+
+  if (existing && existing.count >= DAILY_LIMIT) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  const updated = await AskUsage.findOneAndUpdate(
+    { ip, date },
+    { $inc: { count: 1 } },
+    { upsert: true, new: true }
+  );
+
+  return { allowed: true, remaining: Math.max(0, DAILY_LIMIT - updated.count) };
 }
 
 async function buildContext() {
@@ -56,6 +84,13 @@ const askAboutWork = asyncHandler(async (req, res) => {
     fail(`Question cannot exceed ${MAX_QUESTION_LENGTH} characters`, 400);
   }
 
+  const usage = await checkAndIncrementUsage(req.ip);
+  if (!usage.allowed) {
+    const error = new Error("You've reached today's question limit for this assistant. Please try again tomorrow.");
+    error.statusCode = 429;
+    throw error;
+  }
+
   let historyText = '';
   if (Array.isArray(history)) {
     const recent = history
@@ -75,7 +110,12 @@ ${context}`;
 
   const answer = await callAI({ system, prompt, temperature: 0.4, maxTokens: 400 });
 
-  res.status(200).json({ success: true, answer: answer.trim() || "Sorry, I couldn't come up with an answer to that." });
+  res.status(200).json({
+    success: true,
+    answer: answer.trim() || "Sorry, I couldn't come up with an answer to that.",
+    remaining: usage.remaining,
+    dailyLimit: DAILY_LIMIT,
+  });
 });
 
 module.exports = { askAboutWork };

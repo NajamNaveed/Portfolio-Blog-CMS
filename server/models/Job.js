@@ -40,7 +40,7 @@ const jobSchema = new mongoose.Schema(
     source: {
       type: String,
       required: true,
-      enum: ['remotive', 'remoteok', 'arbeitnow', 'jobicy'],
+      enum: ['remotive', 'remoteok', 'arbeitnow', 'jobicy', 'himalayas', 'weworkremotely', 'manual'],
     },
     // Stable identity for dedup even if the same role gets re-posted with
     // slightly different wording — normalized "company::title". Uniqueness

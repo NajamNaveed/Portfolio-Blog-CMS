@@ -1,6 +1,10 @@
 # Jobs Feature — Setup Guide
 
-Admin-only feature: an admin "Jobs" section that pulls listings daily from four free, keyless job board APIs (Remotive, RemoteOK, Arbeitnow, Jobicy), filters them against criteria you set, runs a free AI pass (Groq) to drop irrelevant/spam listings, and dedupes so you never see the same posting twice. Nothing is shown on the public site.
+Admin-only feature: an admin "Jobs" section that pulls listings daily from six free, keyless job board APIs (Remotive, RemoteOK, Arbeitnow, Jobicy, Himalayas, We Work Remotely), filters them against criteria you set, runs a free AI pass (Groq or Gemini) to drop irrelevant/spam listings, and dedupes (both exact and fuzzy near-duplicate matching) so you never see the same posting twice. Nothing is shown on the public site.
+
+**On Pakistani boards (Rozee.pk, etc.):** there's no clean official free API for these, and scraping them directly carries the same ToS/blocking risk as scraping LinkedIn or Indeed — so instead, **Jobs → Listings** has an **"Add Manually"** button. Paste in a listing's details by hand and it flows through the exact same status pipeline (New → Interested → Applied → ...) as auto-fetched jobs. This is the safe, honest way to cover sources with no API.
+
+Also on that screen: **Delete Expired** clears out jobs whose posting link has gone dead, and **Delete All** wipes every job regardless of status (useful for a clean slate while you're still tuning your criteria) — both ask for confirmation first since they're irreversible.
 
 ## 1. Get your free Groq API key (for AI filtering)
 

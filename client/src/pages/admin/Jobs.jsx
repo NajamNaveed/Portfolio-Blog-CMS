@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, ExternalLink, RefreshCw, Ban, Copy, Check } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, RefreshCw, Ban, Copy, Check, X } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorMessage from '../../components/ErrorMessage';
 import EmptyState from '../../components/EmptyState';
@@ -12,6 +12,9 @@ import {
   updateJobStatus,
   blockCompany,
   deleteJob,
+  deleteAllJobs,
+  deleteExpiredJobs,
+  addManualJob,
   runJobFetchNow,
 } from '../../services/jobService';
 import { createJobShareLink, getJobShareLinks, deleteJobShareLink } from '../../services/jobShareService';
@@ -28,7 +31,7 @@ const STATUS_TABS = [
   { key: 'hidden', label: 'Hidden' },
 ];
 
-const SOURCE_OPTIONS = ['remotive', 'remoteok', 'arbeitnow', 'jobicy'];
+const SOURCE_OPTIONS = ['remotive', 'remoteok', 'arbeitnow', 'jobicy', 'himalayas', 'weworkremotely'];
 
 export default function Jobs() {
   const [tab, setTab] = useState('listings');
@@ -73,6 +76,9 @@ function JobListings() {
   const [actionError, setActionError] = useState('');
   const [running, setRunning] = useState(false);
   const [runSummary, setRunSummary] = useState(null);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [deletingExpired, setDeletingExpired] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
 
   async function fetchJobs() {
     setStatus('loading');
@@ -105,6 +111,48 @@ function JobListings() {
     } finally {
       setRunning(false);
     }
+  }
+
+  async function handleDeleteAll() {
+    const confirmed = window.confirm(
+      'Delete ALL jobs, in every status (New, Interested, Applied, Rejected, Hidden)? This cannot be undone.'
+    );
+    if (!confirmed) return;
+    setDeletingAll(true);
+    setActionError('');
+    try {
+      await deleteAllJobs();
+      await fetchJobs();
+    } catch (err) {
+      setActionError(getErrorMessage(err, 'Unable to delete all jobs.'));
+    } finally {
+      setDeletingAll(false);
+    }
+  }
+
+  async function handleDeleteExpired() {
+    const confirmed = window.confirm('Delete all jobs marked as Expired? This cannot be undone.');
+    if (!confirmed) return;
+    setDeletingExpired(true);
+    setActionError('');
+    try {
+      const result = await deleteExpiredJobs();
+      setActionError('');
+      await fetchJobs();
+      if (result.deletedCount === 0) {
+        window.alert('No expired jobs to delete.');
+      }
+    } catch (err) {
+      setActionError(getErrorMessage(err, 'Unable to delete expired jobs.'));
+    } finally {
+      setDeletingExpired(false);
+    }
+  }
+
+  async function handleManualAdd(payload) {
+    await addManualJob(payload);
+    setShowManualForm(false);
+    await fetchJobs();
   }
 
   async function handleStatusChange(job, nextStatus) {
@@ -162,16 +210,45 @@ function JobListings() {
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={handleRunNow}
-          disabled={running}
-          className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <RefreshCw className={`size-4 ${running ? 'animate-spin' : ''}`} />
-          {running ? 'Running…' : 'Run Now'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowManualForm((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50"
+          >
+            <Plus className="size-4" /> Add Manually
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteExpired}
+            disabled={deletingExpired}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Trash2 className="size-4" />
+            {deletingExpired ? 'Deleting…' : 'Delete Expired'}
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteAll}
+            disabled={deletingAll}
+            className="inline-flex items-center gap-2 rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Trash2 className="size-4" />
+            {deletingAll ? 'Deleting…' : 'Delete All'}
+          </button>
+          <button
+            type="button"
+            onClick={handleRunNow}
+            disabled={running}
+            className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw className={`size-4 ${running ? 'animate-spin' : ''}`} />
+            {running ? 'Running…' : 'Run Now'}
+          </button>
+        </div>
       </div>
+
+      {showManualForm && <ManualJobForm onSubmit={handleManualAdd} onCancel={() => setShowManualForm(false)} />}
 
       {sourceTotal > 0 && (
         <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-500">
@@ -286,6 +363,83 @@ function JobListings() {
         )}
       </div>
     </div>
+  );
+}
+
+function ManualJobForm({ onSubmit, onCancel }) {
+  const [values, setValues] = useState({ title: '', company: '', location: '', url: '', tags: '', description: '', remote: true });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  function update(field, value) {
+    setValues((v) => ({ ...v, [field]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    if (!values.title.trim() || !values.company.trim() || !values.url.trim()) {
+      setError('Title, company, and URL are required.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        title: values.title.trim(),
+        company: values.company.trim(),
+        location: values.location.trim(),
+        url: values.url.trim(),
+        description: values.description.trim(),
+        remote: values.remote,
+        tags: values.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      });
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to add this job.'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-900">Add a Job Manually</h3>
+        <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-700">
+          <X className="size-4" />
+        </button>
+      </div>
+      <p className="text-xs text-gray-500">
+        For boards with no free API (e.g. Rozee.pk) — paste in the details and it flows through the same
+        New/Interested/Applied pipeline as fetched jobs.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <input className={inputClass} placeholder="Title" value={values.title} onChange={(e) => update('title', e.target.value)} />
+        <input className={inputClass} placeholder="Company" value={values.company} onChange={(e) => update('company', e.target.value)} />
+        <input className={inputClass} placeholder="Location" value={values.location} onChange={(e) => update('location', e.target.value)} />
+        <input className={inputClass} placeholder="Posting URL" value={values.url} onChange={(e) => update('url', e.target.value)} />
+        <input className={inputClass} placeholder="Tags (comma-separated)" value={values.tags} onChange={(e) => update('tags', e.target.value)} />
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={values.remote} onChange={(e) => update('remote', e.target.checked)} /> Remote
+        </label>
+      </div>
+      <textarea
+        className={inputClass}
+        rows={2}
+        placeholder="Description (optional)"
+        value={values.description}
+        onChange={(e) => update('description', e.target.value)}
+      />
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submitting ? 'Adding…' : 'Add Job'}
+        </button>
+      </div>
+    </form>
   );
 }
 

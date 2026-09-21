@@ -48,8 +48,8 @@ const jobCriteriaSchema = new mongoose.Schema(
     },
     sources: {
       type: [String],
-      enum: ['remotive', 'remoteok', 'arbeitnow', 'jobicy'],
-      default: ['remotive', 'remoteok', 'arbeitnow', 'jobicy'],
+      enum: ['remotive', 'remoteok', 'arbeitnow', 'jobicy', 'himalayas', 'weworkremotely'],
+      default: ['remotive', 'remoteok', 'arbeitnow', 'jobicy', 'himalayas', 'weworkremotely'],
     },
     scheduleTime: {
       // 24h "HH:mm" — read by the local scheduler (server/services/jobScheduler.js)
