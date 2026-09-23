@@ -58,6 +58,13 @@ const jobCriteriaSchema = new mongoose.Schema(
       type: String,
       default: '09:00',
     },
+    autoFetchEnabled: {
+      // Turns off BOTH the local scheduler and the external GitHub
+      // Actions cron trigger. The admin "Run Now" button always works
+      // regardless of this flag, since that's an explicit manual action.
+      type: Boolean,
+      default: true,
+    },
     lastRunAt: {
       type: Date,
       default: null,

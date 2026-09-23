@@ -205,19 +205,41 @@ const addManualJob = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, job });
 });
 
+const toggleAutoFetch = asyncHandler(async (req, res) => {
+  const { enabled } = req.body || {};
+  if (typeof enabled !== 'boolean') fail('enabled must be a boolean', 400);
+
+  const criteria = await getOrCreateJobCriteria();
+  criteria.autoFetchEnabled = enabled;
+  await criteria.save();
+
+  res.status(200).json({ success: true, autoFetchEnabled: criteria.autoFetchEnabled });
+});
+
 // ---------------- Run pipeline ----------------
-// Shared by the admin "Run Now" button (JWT-protected route) and the
-// external cron trigger (secret-token-protected route) — both just call
-// this handler via their own route/middleware stack.
+// The admin "Run Now" button always runs, regardless of the auto-fetch
+// toggle, since that's an explicit manual action. The external cron
+// trigger (GitHub Actions) and the local scheduler both go through
+// runFromCron instead, which respects the toggle.
 
 const runNow = asyncHandler(async (req, res) => {
   const summary = await runJobFetchPipeline();
   res.status(200).json({ success: true, summary });
 });
 
+const runFromCron = asyncHandler(async (req, res) => {
+  const criteria = await getOrCreateJobCriteria();
+  if (!criteria.autoFetchEnabled) {
+    return res.status(200).json({ success: true, skipped: true, message: 'Auto-fetch is turned off.' });
+  }
+  const summary = await runJobFetchPipeline();
+  return res.status(200).json({ success: true, summary });
+});
+
 module.exports = {
   getCriteria,
   updateCriteria,
+  toggleAutoFetch,
   getJobs,
   updateJobStatus,
   blockCompany,
@@ -226,4 +248,5 @@ module.exports = {
   deleteExpiredJobs,
   addManualJob,
   runNow,
+  runFromCron,
 };

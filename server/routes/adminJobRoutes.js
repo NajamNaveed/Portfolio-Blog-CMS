@@ -2,6 +2,7 @@ const express = require('express');
 const {
   getCriteria,
   updateCriteria,
+  toggleAutoFetch,
   getJobs,
   updateJobStatus,
   blockCompany,
@@ -19,6 +20,7 @@ router.use(protect, requireAdmin);
 
 router.get('/criteria', getCriteria);
 router.put('/criteria', updateCriteria);
+router.patch('/criteria/auto-fetch', toggleAutoFetch);
 router.get('/', getJobs);
 router.post('/manual', addManualJob);
 router.patch('/:id/status', updateJobStatus);

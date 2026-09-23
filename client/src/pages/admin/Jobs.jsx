@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, ExternalLink, RefreshCw, Ban, Copy, Check, X } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, RefreshCw, Ban, Copy, Check, X, Pause, Play } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorMessage from '../../components/ErrorMessage';
 import EmptyState from '../../components/EmptyState';
@@ -8,6 +8,7 @@ import { getErrorMessage } from '../../utils/getErrorMessage';
 import {
   getJobCriteria,
   updateJobCriteria,
+  toggleAutoFetch,
   getJobs,
   updateJobStatus,
   blockCompany,
@@ -79,6 +80,8 @@ function JobListings() {
   const [deletingAll, setDeletingAll] = useState(false);
   const [deletingExpired, setDeletingExpired] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
+  const [autoFetchEnabled, setAutoFetchEnabled] = useState(true);
+  const [togglingAutoFetch, setTogglingAutoFetch] = useState(false);
 
   async function fetchJobs() {
     setStatus('loading');
@@ -94,9 +97,28 @@ function JobListings() {
   }
 
   useEffect(() => {
+    getJobCriteria()
+      .then((c) => setAutoFetchEnabled(c.autoFetchEnabled !== false))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     fetchJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
+
+  async function handleToggleAutoFetch() {
+    setTogglingAutoFetch(true);
+    setActionError('');
+    try {
+      const next = await toggleAutoFetch(!autoFetchEnabled);
+      setAutoFetchEnabled(next);
+    } catch (err) {
+      setActionError(getErrorMessage(err, 'Unable to update auto-fetch.'));
+    } finally {
+      setTogglingAutoFetch(false);
+    }
+  }
 
   async function handleRunNow() {
     setRunning(true);
@@ -213,6 +235,20 @@ function JobListings() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            onClick={handleToggleAutoFetch}
+            disabled={togglingAutoFetch}
+            title={autoFetchEnabled ? 'Turn off automatic daily fetching (local scheduler + GitHub Actions cron)' : 'Turn automatic fetching back on'}
+            className={`inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+              autoFetchEnabled
+                ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                : 'border-amber-300 bg-amber-50 text-amber-800'
+            }`}
+          >
+            {autoFetchEnabled ? <Pause className="size-4" /> : <Play className="size-4" />}
+            {autoFetchEnabled ? 'Turn Off Auto Fetch' : 'Auto Fetch Off — Turn On'}
+          </button>
+          <button
+            type="button"
             onClick={() => setShowManualForm((v) => !v)}
             className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50"
           >
@@ -247,6 +283,13 @@ function JobListings() {
           </button>
         </div>
       </div>
+
+      {!autoFetchEnabled && (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Automatic fetching is turned off — the daily local scheduler and GitHub Actions cron will both skip runs.
+          The <strong>Run Now</strong> button still works.
+        </div>
+      )}
 
       {showManualForm && <ManualJobForm onSubmit={handleManualAdd} onCancel={() => setShowManualForm(false)} />}
 

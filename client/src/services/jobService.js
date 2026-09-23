@@ -30,6 +30,11 @@ export async function blockCompany(id) {
   return data;
 }
 
+export async function toggleAutoFetch(enabled) {
+  const { data } = await api.patch('/admin/jobs/criteria/auto-fetch', { enabled });
+  return data.autoFetchEnabled;
+}
+
 export async function deleteAllJobs() {
   const { data } = await api.delete('/admin/jobs/all');
   return data;

@@ -23,6 +23,8 @@ async function tick() {
 
   try {
     const criteria = await getOrCreateJobCriteria();
+    if (!criteria.autoFetchEnabled) return; // paused via the admin toggle
+
     const timeZone = process.env.JOB_SCHEDULE_TIMEZONE || 'UTC';
     const { time, date } = getTimeParts(timeZone);
     const runKey = `${date}T${time}`;
